@@ -17,12 +17,12 @@ BSA_factor = 1.05
 ammonium_sulfate_factor = 1.2
 detergents_factor = 1.1
 
-#Prompts to get 
+#Prompts to get the information required to begin the analysis
 chrID = input('Input gene ID here: ')
 start = input('Put start sequence number here: ')
 stop = input('Put stop sequnce number here: ')
 
-#This can be used to aquire a given fasta file from the Entrez database
+#This function will be used to aquire fasta file from the Entrez database
 def obtainfasta(chrID, start, stop):
     record = str(SeqIO.read(Entrez.efetch(db='nucleotide', id=chrID, rettype='fasta', strand='1', seq_start=start, seq_stop=stop), 'fasta').seq)
     return record
@@ -30,7 +30,6 @@ def obtainfasta(chrID, start, stop):
 #Calculates the GC content of a given DNA sequnce input and determines whether that is within the ideal range
 def user_input_gc(obtainfasta):
     GC_calculation = (str(int(round((sum([1.0 for nucl in obtainfasta(chrID,start,stop) if nucl in ['G', 'C']]) / len(obtainfasta(chrID,start,stop))) * 100))))
-    #GC_calculation = sum(getFas_list.count(x) for x in ['G', 'C', 'g', 'c']) 
     if str(GC_calculation) > str(max_GC_content) or str(GC_calculation) < str(min_GC_content):
         print('This sequence contains a GC percent of ' +  str(GC_calculation) + '%' + '  and outside the normal range')
     else:

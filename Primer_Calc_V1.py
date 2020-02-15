@@ -4,43 +4,43 @@ import re, math
 #Modified NN Parameters based on SantaLucia's 1998 paper
 ###################################################################################################################################
 
-AA_delta_s = -22.55
-AA_delta_h = -8.3
+AA_delta_s = -22.95
+AA_delta_h = -8.05
 AA_delta_g = AA_delta_h - (273.15*(AA_delta_s/1000))
 
-AC_delta_s = -20.0
-AC_delta_h = -8.1
+AC_delta_s = -20.255
+AC_delta_h = -8.05
 AC_delta_g = AC_delta_h - (273.15*(AC_delta_s/1000))
 
-AG_delta_s = -21.15
-AG_delta_h = -8.25
+AG_delta_s = -21.25
+AG_delta_h = -8.11
 AG_delta_g = AG_delta_h - (273.15*(AG_delta_s/1000))
 
-AT_delta_s = -20.5
-AT_delta_h = -7.5
+AT_delta_s = -20.35
+AT_delta_h = -7.55
 AT_delta_g = AT_delta_h - (273.15*(AT_delta_s/1000))
 
-CA_delta_s = -22.62
-CA_delta_h = -8.55
+CA_delta_s = -22.35
+CA_delta_h = -8.65
 CA_delta_g = CA_delta_h - (273.15*(CA_delta_s/1000))
 
-CC_delta_s = -20.11
-CC_delta_h = -8.04
+CC_delta_s = -20.32
+CC_delta_h = -8.3
 CC_delta_g = CC_delta_h - (273.15*(CC_delta_s/1000))
 
-CG_delta_s = -24.6
-CG_delta_h = -9.9
+CG_delta_s = -25.2
+CG_delta_h = -9.95
 CG_delta_g = CG_delta_h - (273.15*(CG_delta_s/1000))
 
-GA_delta_s = -22.65
-GA_delta_h = -8.0
+GA_delta_s = -22.31
+GA_delta_h = -8.15
 GA_delta_g = GA_delta_h - (273.15*(GA_delta_s/1000))
 
-GC_delta_s = -25
-GC_delta_h = -9.8
+GC_delta_s = -25.05
+GC_delta_h = -9.7
 GC_delta_g = GC_delta_h - (273.15*(GC_delta_s/1000))
 
-TA_delta_s = -20.9
+TA_delta_s = -20.65
 TA_delta_h = -7.2
 TA_delta_g = TA_delta_h - (273.15*(TA_delta_s/1000))
 
@@ -204,7 +204,7 @@ def primer1_salt_correction(Mono, Mg, dNTPs):
 
     if R < 0.22:
 
-        inverse_primer1_corr = (1 / (primer1_melting_temperature + 273.15)) + ((5.99e-5 * (primer1_gc / 100)) - 2.64e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
+        inverse_primer1_corr = (1 / (primer1_melting_temperature + 273.15)) + ((5.05e-5 * (primer1_gc / 100)) - 2.90e-5) * math.log(mon) + 9.11e-6 * (math.log(mon)) ** 2
 
         corr = (1 / inverse_primer1_corr) - 273.15
 
@@ -254,7 +254,7 @@ def primer2_salt_correction(Mono, Mg, dNTPs):
 
     if R < 0.22:
         
-        inverse_primer2_corr = (1 / (primer2_melting_temperature + 273.15)) + ((5.99e-5 * (primer2_gc / 100)) - 2.64e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
+        inverse_primer2_corr = (1 / (primer2_melting_temperature + 273.15)) + ((5.05e-5 * (primer2_gc / 100)) - 2.90e-5) * math.log(mon) + 9.11e-6 * (math.log(mon)) ** 2
 
         corr = (1 / inverse_primer2_corr) - 273.15
 

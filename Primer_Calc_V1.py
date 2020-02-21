@@ -4,44 +4,44 @@ import re, math
 #Modified NN Parameters based on SantaLucia's 1998 paper
 ###################################################################################################################################
 
-AA_delta_s = -22.95
-AA_delta_h = -8.05
+AA_delta_s = -22.15
+AA_delta_h = -7.95
 AA_delta_g = AA_delta_h - (273.15*(AA_delta_s/1000))
 
-AC_delta_s = -20.255
-AC_delta_h = -8.05
+AC_delta_s = -20.425
+AC_delta_h = -7.915
 AC_delta_g = AC_delta_h - (273.15*(AC_delta_s/1000))
 
-AG_delta_s = -21.25
+AG_delta_s = -21.125
 AG_delta_h = -8.11
 AG_delta_g = AG_delta_h - (273.15*(AG_delta_s/1000))
 
-AT_delta_s = -20.35
-AT_delta_h = -7.55
+AT_delta_s = -20.175
+AT_delta_h = -7.95
 AT_delta_g = AT_delta_h - (273.15*(AT_delta_s/1000))
 
-CA_delta_s = -22.35
-CA_delta_h = -8.65
+CA_delta_s = -22.27
+CA_delta_h = -8.5
 CA_delta_g = CA_delta_h - (273.15*(CA_delta_s/1000))
 
-CC_delta_s = -20.32
-CC_delta_h = -8.3
+CC_delta_s = -20.26
+CC_delta_h = -8.12
 CC_delta_g = CC_delta_h - (273.15*(CC_delta_s/1000))
 
-CG_delta_s = -25.2
-CG_delta_h = -9.95
+CG_delta_s = -24.95
+CG_delta_h = -10.2
 CG_delta_g = CG_delta_h - (273.15*(CG_delta_s/1000))
 
-GA_delta_s = -22.31
-GA_delta_h = -8.15
+GA_delta_s = -22.45
+GA_delta_h = -8.1
 GA_delta_g = GA_delta_h - (273.15*(GA_delta_s/1000))
 
-GC_delta_s = -25.05
-GC_delta_h = -9.7
+GC_delta_s = -24.7
+GC_delta_h = -9.78
 GC_delta_g = GC_delta_h - (273.15*(GC_delta_s/1000))
 
-TA_delta_s = -20.65
-TA_delta_h = -7.2
+TA_delta_s = -20.175
+TA_delta_h = -7.34
 TA_delta_g = TA_delta_h - (273.15*(TA_delta_s/1000))
 
 #Lists with all non-overlapping NN pair possiblities
@@ -67,8 +67,7 @@ gas_constant = 1.98720425864083 #cal⋅K−1⋅mol−1
 
 primer1 = input('Input primer 1 sequence here: ')
 primer2 = input('Input primer 2 sequence here: ')
-oligo1_conc = float(input('Input oligo 1 concentration in uM here: '))
-oligo2_conc = float(input('Input oligo 2 concentration in uM here: '))
+oligo1_conc = float(input('Input total single strand oligo concentration in uM here: '))
 Mono = float(input('Input total monovalent ion concentration in mM here: '))
 Mg = float(input('Input Mg concentration in mM here: '))
 dNTPs = float(input('Input dNTP concentration in mM here: '))
@@ -84,38 +83,24 @@ duo_primer2 = re.findall('.{1,2}', primer2) + re.findall('.{1,2}', primer2[1:])
 primer1_length = len(primer1)
 primer2_length = len(primer2)
 
-def oligo_calculation(oligo1_conc, oligo2_conc):
+p1_terminal_base = lst_primer1[-1]
+p1_initial_base = lst_primer1[0]
 
-    if oligo1_conc > 6 * oligo2_conc:
+p2_terminal_base = lst_primer2[-1]
+p2_initial_base = lst_primer2[0]
 
-        oligo_c = (oligo1_conc) * 1e-9
-
-        return oligo_c
-
-    elif oligo1_conc < 6 * oligo2_conc and oligo1_conc > oligo2_conc:
-
-        oligo_c = (oligo1_conc - (oligo2_conc / 2.0)) * 1e-9
-
-        return oligo_c
-
-    elif oligo1_conc == oligo2_conc:
-
-        oligo_c = (oligo1_conc / 2.0) * 1e-9
-
-        return oligo_c
-
-oligo_c = oligo_calculation(oligo1_conc, oligo2_conc)
+oligo_c = (oligo1_conc / 2.0) * 1e-9
 
 #Calculation of each primer's GC content
 def get_primer1_gc(primer1):
 
-    primer1_GC = round((sum([1.0 for i in lst_primer1 if i in ['G', 'C']]) / primer1_length) * 100, 2)
+    primer1_GC = (sum([1.0 for i in lst_primer1 if i in ['G', 'C']]) / primer1_length) * 100
 
     return primer1_GC
 
 def get_primer2_gc(primer2):
 
-    primer2_GC = round((sum([1.0 for i in lst_primer2 if i in ['G', 'C']]) / primer2_length) * 100, 2)
+    primer2_GC = (sum([1.0 for i in lst_primer2 if i in ['G', 'C']]) / primer2_length) * 100
 
     return primer2_GC
 
@@ -177,6 +162,85 @@ sum_p1_delta_s = AA_s_p1 + AC_s_p1 + AG_s_p1 + AT_s_p1 + CA_s_p1 + CC_s_p1 + CG_
 sum_p2_delta_h = AA_h_p2 + AC_h_p2 + AG_h_p2 + AT_h_p2 + CA_h_p2 + CC_h_p2 + CG_h_p2 + GA_h_p2 + GC_h_p2 + TA_h_p2
 sum_p2_delta_s = AA_s_p2 + AC_s_p2 + AG_s_p2 + AT_s_p2 + CA_s_p2 + CC_s_p2 + CG_s_p2 + GA_s_p2 + GC_s_p2 + TA_s_p2
 
+def p1_terminal_comp(p1_initial_base, p1_terminal_base, sum_p1_delta_h, sum_p1_delta_s):
+
+    AT_h, AT_s, GC_h, GC_s = 2.3, 5.9, .25, -.7
+
+    for base in p1_initial_base:   
+        if base == 'A' or 'T':
+
+            sum_p1_delta_h += AT_h
+            sum_p1_delta_s += AT_s
+
+            return sum_p1_delta_h, sum_p1_delta_s
+
+    for base in p1_initial_base:
+        if base == 'G' or 'C':
+
+            sum_p1_delta_h += GC_h
+            sum_p1_delta_s += GC_s
+
+            return sum_p1_delta_h, sum_p1_delta_s
+
+    for base in p1_terminal_base:
+        if base == 'A' or 'T':
+
+            sum_p1_delta_h += AT_h
+            sum_p1_delta_s += AT_s
+
+            return sum_p1_delta_h, sum_p1_delta_s
+
+    for base in p1_terminal_base:
+        if base == 'G' or 'C':
+
+            sum_p1_delta_h += GC_h
+            sum_p1_delta_s += GC_s
+
+            return sum_p1_delta_h, sum_p1_delta_s
+
+    return sum_p1_delta_h, sum_p1_delta_s
+
+def p2_terminal_comp(p2_initial_base,p2_terminal_base, sum_p2_delta_h, sum_p2_delta_s):
+
+    AT_h, AT_s, GC_h, GC_s = 2.3, 5.9, .25, -.7
+
+    for base in p2_initial_base:
+        if base == 'A' or 'T':
+
+            sum_p2_delta_h += AT_h
+            sum_p2_delta_s += AT_s
+
+            return sum_p2_delta_h, sum_p2_delta_s
+
+    for base in p2_initial_base:
+        if base == 'G' or 'C':
+
+            sum_p2_delta_h += GC_h
+            sum_p2_delta_s += GC_s
+
+            return sum_p2_delta_h, sum_p2_delta_s
+
+    for base in p2_terminal_base:
+        if base == 'A' or 'T':
+
+            sum_p2_delta_h += AT_h
+            sum_p2_delta_s += AT_s
+
+            return sum_p2_delta_h, sum_p2_delta_s
+
+    for base in p2_terminal_base:
+        if base == 'G' or 'C':
+
+            sum_p2_delta_h += GC_h
+            sum_p2_delta_s += GC_s
+
+            return sum_p2_delta_h, sum_p2_delta_s
+            
+    return sum_p2_delta_h, sum_p2_delta_s
+
+p1_term_h, p1_term_s = p1_terminal_comp(p1_initial_base,p1_terminal_base, sum_p1_delta_h, sum_p1_delta_s)
+p2_term_h, p2_term_s = p2_terminal_comp(p2_initial_base,p2_terminal_base, sum_p2_delta_h, sum_p2_delta_s)
+
 ###################################################################################################################################
 #Melting Temperature Adjustments
 ###################################################################################################################################
@@ -185,8 +249,8 @@ sum_p2_delta_s = AA_s_p2 + AC_s_p2 + AG_s_p2 + AT_s_p2 + CA_s_p2 + CC_s_p2 + CG_
 primer1_gc = get_primer1_gc(primer1)
 primer2_gc = get_primer2_gc(primer2)
 
-primer1_melting_temperature = (1000 * sum_p1_delta_h) / (sum_p1_delta_s + (gas_constant * (math.log(oligo_c)))) - 273.15
-primer2_melting_temperature = (1000 * sum_p2_delta_h) / (sum_p2_delta_s + (gas_constant * (math.log(oligo_c)))) - 273.15
+primer1_melting_temperature = (1000 * p1_term_h) / (p1_term_s + (gas_constant * (math.log(oligo_c)))) - 273.15
+primer2_melting_temperature = (1000 * p2_term_h) / (p2_term_s + (gas_constant * (math.log(oligo_c)))) - 273.15
 
 def primer1_salt_correction(Mono, Mg, dNTPs):
     
@@ -198,13 +262,13 @@ def primer1_salt_correction(Mono, Mg, dNTPs):
     mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 1.0) ** 2 + 4.0 * ka * mg_adj)) / (2.0 * ka)
     R = math.sqrt(mg) / mon 
     b = -9.11e-6 
-    c = 6.26e-5
-    e = -4.82e-4 
-    f = 5.25e-4
+    c = 6.16e-5
+    e = -4.48e-4 
+    f = 5.71e-4
 
     if R < 0.22:
 
-        inverse_primer1_corr = (1 / (primer1_melting_temperature + 273.15)) + ((5.05e-5 * (primer1_gc / 100)) - 2.90e-5) * math.log(mon) + 9.11e-6 * (math.log(mon)) ** 2
+        inverse_primer1_corr = (1 / (primer1_melting_temperature + 273.15)) + ((5.15e-5 * (primer1_gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
 
         corr = (1 / inverse_primer1_corr) - 273.15
 
@@ -248,13 +312,13 @@ def primer2_salt_correction(Mono, Mg, dNTPs):
     mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 1.0) ** 2 + 4.0 * ka * mg_adj)) / (2.0 * ka)
     R = math.sqrt(mg) / mon 
     b = -9.11e-6 
-    c = 6.26e-5
-    e = -4.82e-4 
-    f = 5.25e-4
+    c = 6.16e-5
+    e = -4.48e-4 
+    f = 5.71e-4
 
     if R < 0.22:
         
-        inverse_primer2_corr = (1 / (primer2_melting_temperature + 273.15)) + ((5.05e-5 * (primer2_gc / 100)) - 2.90e-5) * math.log(mon) + 9.11e-6 * (math.log(mon)) ** 2
+        inverse_primer2_corr = (1 / (primer2_melting_temperature + 273.15)) + ((5.15e-5 * (primer2_gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
 
         corr = (1 / inverse_primer2_corr) - 273.15
 
@@ -295,10 +359,11 @@ adj_primer2_melting_temperature = primer2_salt_correction(Mono, Mg, dNTPs)
 #Printing the results
 ###################################################################################################################################
 
-print('The GC content of primer 1 is ' + str(primer1_gc) + '%.' + 
-' The GC content of primer 2 is ' + str(primer2_gc) + '%.')
+print('The GC content of primer 1 is ' + str(round(primer1_gc, 1)) + '%.' + 
+' The GC content of primer 2 is ' + str(round(primer2_gc, 1)) + '%.')
 print('The melting temperatures of your primers are ' + str(round(primer1_melting_temperature, 1)) + 
 'C for primer 1, and ' + str(round(primer2_melting_temperature, 1)) + 'C for primer 2.')
 print('The salt adjusted melting temperatures of your primers are ' + str(adj_primer1_melting_temperature) + 
 'C for primer 1, and ' + str(adj_primer2_melting_temperature) + 'C for primer 2.')
-#print(duo_primer1, duo_primer2)
+#print(sorted(duo_primer1))
+#print(sorted(duo_primer2))

@@ -94,6 +94,7 @@ duo_primer2 = re.findall('.{1,2}', primer2) + re.findall('.{1,2}', primer2[1:])
 primer1_length = len(primer1)
 primer2_length = len(primer2)
 
+#Determines which primer calculation should be used based on the ratio of primer to template
 def oligo_calculation(oligo1_conc, oligo2_conc):
 
     if oligo1_conc > 6 * oligo2_conc:
@@ -120,8 +121,8 @@ template_c = (oligo2_conc / 2.0) * 1e-9
 #Calculation of the each primer's GC content
 def get_primer_gc(primer1, primer2):
 
-    primer1_GC = (sum((1.0 for base in primer1 if base in ['G', 'C'])) / primer1_length) * 100
-    primer2_GC = (sum((1.0 for base in primer2 if base in ['G', 'C'])) / primer2_length) * 100
+    primer1_GC = (sum(1.0 for base in primer1 if base in ['G', 'C']) / primer1_length) * 100
+    primer2_GC = (sum(1.0 for base in primer2 if base in ['G', 'C']) / primer2_length) * 100
 
     return primer1_GC, primer2_GC
 
@@ -132,52 +133,52 @@ primer1_gc, primer2_gc = get_primer_gc(primer1, primer2)
 ###################################################################################################################################
 
 #Calculation of delta H total for each NN pair in primer 1
-AA_h_p1 = AA_delta_h * sum((1.0 for NN in duo_primer1 if NN in AA))
-AC_h_p1 = AC_delta_h * sum((1.0 for NN in duo_primer1 if NN in AC))
-AG_h_p1 = AG_delta_h * sum((1.0 for NN in duo_primer1 if NN in AG))
-AT_h_p1 = AT_delta_h * sum((1.0 for NN in duo_primer1 if NN in AT))
-CA_h_p1 = CA_delta_h * sum((1.0 for NN in duo_primer1 if NN in CA))
-CC_h_p1 = CC_delta_h * sum((1.0 for NN in duo_primer1 if NN in CC))
-CG_h_p1 = CG_delta_h * sum((1.0 for NN in duo_primer1 if NN in CG))
-GA_h_p1 = GA_delta_h * sum((1.0 for NN in duo_primer1 if NN in GA))
-GC_h_p1 = GC_delta_h * sum((1.0 for NN in duo_primer1 if NN in GC))
-TA_h_p1 = TA_delta_h * sum((1.0 for NN in duo_primer1 if NN in TA))
+AA_h_p1 = AA_delta_h * sum(1.0 for NN in duo_primer1 if NN in AA)
+AC_h_p1 = AC_delta_h * sum(1.0 for NN in duo_primer1 if NN in AC)
+AG_h_p1 = AG_delta_h * sum(1.0 for NN in duo_primer1 if NN in AG)
+AT_h_p1 = AT_delta_h * sum(1.0 for NN in duo_primer1 if NN in AT)
+CA_h_p1 = CA_delta_h * sum(1.0 for NN in duo_primer1 if NN in CA)
+CC_h_p1 = CC_delta_h * sum(1.0 for NN in duo_primer1 if NN in CC)
+CG_h_p1 = CG_delta_h * sum(1.0 for NN in duo_primer1 if NN in CG)
+GA_h_p1 = GA_delta_h * sum(1.0 for NN in duo_primer1 if NN in GA)
+GC_h_p1 = GC_delta_h * sum(1.0 for NN in duo_primer1 if NN in GC)
+TA_h_p1 = TA_delta_h * sum(1.0 for NN in duo_primer1 if NN in TA)
 
 #Calculation of delta S total for each NN pair in primer 1
-AA_s_p1 = AA_delta_s * sum((1.0 for NN in duo_primer1 if NN in AA))
-AC_s_p1 = AC_delta_s * sum((1.0 for NN in duo_primer1 if NN in AC))
-AG_s_p1 = AG_delta_s * sum((1.0 for NN in duo_primer1 if NN in AG))
-AT_s_p1 = AT_delta_s * sum((1.0 for NN in duo_primer1 if NN in AT))
-CA_s_p1 = CA_delta_s * sum((1.0 for NN in duo_primer1 if NN in CA))
-CC_s_p1 = CC_delta_s * sum((1.0 for NN in duo_primer1 if NN in CC))
-CG_s_p1 = CG_delta_s * sum((1.0 for NN in duo_primer1 if NN in CG))
-GA_s_p1 = GA_delta_s * sum((1.0 for NN in duo_primer1 if NN in GA))
-GC_s_p1 = GC_delta_s * sum((1.0 for NN in duo_primer1 if NN in GC))
-TA_s_p1 = TA_delta_s * sum((1.0 for NN in duo_primer1 if NN in TA))
+AA_s_p1 = AA_delta_s * sum(1.0 for NN in duo_primer1 if NN in AA)
+AC_s_p1 = AC_delta_s * sum(1.0 for NN in duo_primer1 if NN in AC)
+AG_s_p1 = AG_delta_s * sum(1.0 for NN in duo_primer1 if NN in AG)
+AT_s_p1 = AT_delta_s * sum(1.0 for NN in duo_primer1 if NN in AT)
+CA_s_p1 = CA_delta_s * sum(1.0 for NN in duo_primer1 if NN in CA)
+CC_s_p1 = CC_delta_s * sum(1.0 for NN in duo_primer1 if NN in CC)
+CG_s_p1 = CG_delta_s * sum(1.0 for NN in duo_primer1 if NN in CG)
+GA_s_p1 = GA_delta_s * sum(1.0 for NN in duo_primer1 if NN in GA)
+GC_s_p1 = GC_delta_s * sum(1.0 for NN in duo_primer1 if NN in GC)
+TA_s_p1 = TA_delta_s * sum(1.0 for NN in duo_primer1 if NN in TA)
 
 #Calculation of delta H total for each NN pair in primer 2
-AA_h_p2 = AA_delta_h * sum((1.0 for NN in duo_primer2 if NN in AA))
-AC_h_p2 = AC_delta_h * sum((1.0 for NN in duo_primer2 if NN in AC))
-AG_h_p2 = AG_delta_h * sum((1.0 for NN in duo_primer2 if NN in AG))
-AT_h_p2 = AT_delta_h * sum((1.0 for NN in duo_primer2 if NN in AT))
-CA_h_p2 = CA_delta_h * sum((1.0 for NN in duo_primer2 if NN in CA))
-CC_h_p2 = CC_delta_h * sum((1.0 for NN in duo_primer2 if NN in CC))
-CG_h_p2 = CG_delta_h * sum((1.0 for NN in duo_primer2 if NN in CG))
-GA_h_p2 = GA_delta_h * sum((1.0 for NN in duo_primer2 if NN in GA))
-GC_h_p2 = GC_delta_h * sum((1.0 for NN in duo_primer2 if NN in GC))
-TA_h_p2 = TA_delta_h * sum((1.0 for NN in duo_primer2 if NN in TA))
+AA_h_p2 = AA_delta_h * sum(1.0 for NN in duo_primer2 if NN in AA)
+AC_h_p2 = AC_delta_h * sum(1.0 for NN in duo_primer2 if NN in AC)
+AG_h_p2 = AG_delta_h * sum(1.0 for NN in duo_primer2 if NN in AG)
+AT_h_p2 = AT_delta_h * sum(1.0 for NN in duo_primer2 if NN in AT)
+CA_h_p2 = CA_delta_h * sum(1.0 for NN in duo_primer2 if NN in CA)
+CC_h_p2 = CC_delta_h * sum(1.0 for NN in duo_primer2 if NN in CC)
+CG_h_p2 = CG_delta_h * sum(1.0 for NN in duo_primer2 if NN in CG)
+GA_h_p2 = GA_delta_h * sum(1.0 for NN in duo_primer2 if NN in GA)
+GC_h_p2 = GC_delta_h * sum(1.0 for NN in duo_primer2 if NN in GC)
+TA_h_p2 = TA_delta_h * sum(1.0 for NN in duo_primer2 if NN in TA)
 
 #Calculation of delta S total for each NN pair in primer 2
-AA_s_p2 = AA_delta_s * sum((1.0 for NN in duo_primer2 if NN in AA))
-AC_s_p2 = AC_delta_s * sum((1.0 for NN in duo_primer2 if NN in AC))
-AG_s_p2 = AG_delta_s * sum((1.0 for NN in duo_primer2 if NN in AG))
-AT_s_p2 = AT_delta_s * sum((1.0 for NN in duo_primer2 if NN in AT))
-CA_s_p2 = CA_delta_s * sum((1.0 for NN in duo_primer2 if NN in CA))
-CC_s_p2 = CC_delta_s * sum((1.0 for NN in duo_primer2 if NN in CC))
-CG_s_p2 = CG_delta_s * sum((1.0 for NN in duo_primer2 if NN in CG))
-GA_s_p2 = GA_delta_s * sum((1.0 for NN in duo_primer2 if NN in GA))
-GC_s_p2 = GC_delta_s * sum((1.0 for NN in duo_primer2 if NN in GC))
-TA_s_p2 = TA_delta_s * sum((1.0 for NN in duo_primer2 if NN in TA))
+AA_s_p2 = AA_delta_s * sum(1.0 for NN in duo_primer2 if NN in AA)
+AC_s_p2 = AC_delta_s * sum(1.0 for NN in duo_primer2 if NN in AC)
+AG_s_p2 = AG_delta_s * sum(1.0 for NN in duo_primer2 if NN in AG)
+AT_s_p2 = AT_delta_s * sum(1.0 for NN in duo_primer2 if NN in AT)
+CA_s_p2 = CA_delta_s * sum(1.0 for NN in duo_primer2 if NN in CA)
+CC_s_p2 = CC_delta_s * sum(1.0 for NN in duo_primer2 if NN in CC)
+CG_s_p2 = CG_delta_s * sum(1.0 for NN in duo_primer2 if NN in CG)
+GA_s_p2 = GA_delta_s * sum(1.0 for NN in duo_primer2 if NN in GA)
+GC_s_p2 = GC_delta_s * sum(1.0 for NN in duo_primer2 if NN in GC)
+TA_s_p2 = TA_delta_s * sum(1.0 for NN in duo_primer2 if NN in TA)
 
 sum_p1_delta_h = AA_h_p1 + AC_h_p1 + AG_h_p1 + AT_h_p1 + CA_h_p1 + CC_h_p1 + CG_h_p1 + GA_h_p1 + GC_h_p1 + TA_h_p1
 sum_p1_delta_s = AA_s_p1 + AC_s_p1 + AG_s_p1 + AT_s_p1 + CA_s_p1 + CC_s_p1 + CG_s_p1 + GA_s_p1 + GC_s_p1 + TA_s_p1
@@ -191,11 +192,11 @@ def p1_terminal_comp(p1_initial_base, p1_terminal_base, sum_p1_delta_h, sum_p1_d
     AT_h, AT_s, GC_h, GC_s = 2.4, 5.7, .45, -1.7 #h in kcal/mol, s in eu
     dh, ds = 0, 0
 
-    dh_init = sum([dh + AT_h if p1_initial_base in ['A', 'T'] else dh + GC_h])
-    ds_init = sum([ds + AT_s if p1_initial_base in ['A', 'T'] else ds + GC_s])
+    dh_init = (dh + AT_h if p1_initial_base in ['A', 'T'] else dh + GC_h)
+    ds_init = (ds + AT_s if p1_initial_base in ['A', 'T'] else ds + GC_s)
 
-    dh_term = sum([dh + AT_h if p1_terminal_base in ['A', 'T'] else dh + GC_h])
-    ds_term = sum([ds + AT_s if p1_terminal_base in ['A', 'T'] else ds + GC_s])
+    dh_term = (dh + AT_h if p1_terminal_base in ['A', 'T'] else dh + GC_h)
+    ds_term = (ds + AT_s if p1_terminal_base in ['A', 'T'] else ds + GC_s)
 
     dh_total = dh_init + dh_term + sum_p1_delta_h
     ds_total = ds_init + ds_term + sum_p1_delta_s
@@ -207,11 +208,11 @@ def p2_terminal_comp(p2_initial_base, p2_terminal_base, sum_p2_delta_h, sum_p2_d
     AT_h, AT_s, GC_h, GC_s = 2.4, 5.7, .45, -1.7 #h in kcal/mol, s in eu
     dh, ds = 0, 0
 
-    dh_init = sum([dh + AT_h if p2_initial_base in ['A', 'T'] else dh + GC_h])
-    ds_init = sum([ds + AT_s if p2_initial_base in ['A', 'T'] else ds + GC_s])
+    dh_init = (dh + AT_h if p2_initial_base in ['A', 'T'] else dh + GC_h)
+    ds_init = (ds + AT_s if p2_initial_base in ['A', 'T'] else ds + GC_s)
 
-    dh_term = sum([dh + AT_h if p2_terminal_base in ['A', 'T'] else dh + GC_h])
-    ds_term = sum([ds + AT_s if p2_terminal_base in ['A', 'T'] else ds + GC_s])
+    dh_term = (dh + AT_h if p2_terminal_base in ['A', 'T'] else dh + GC_h)
+    ds_term = (ds + AT_s if p2_terminal_base in ['A', 'T'] else ds + GC_s)
 
     dh_total = dh_init + dh_term + sum_p2_delta_h
     ds_total = ds_init + ds_term + sum_p2_delta_s
@@ -241,7 +242,7 @@ initial_base = sequence[0]
 terminal_base = sequence[-1]
 
 #Calculates the GC content of the input DNA sequence and determines whether that percentage is within the ideal range
-GC_calculation = (sum((1.0 for base in sequence if base in ['G', 'C'])) / len(sequence)) * 100
+GC_calculation = (sum(1.0 for base in sequence if base in ['G', 'C']) / len(sequence)) * 100
 
 def input_sequence_gc(GC_calculation):
 
@@ -258,40 +259,40 @@ def input_sequence_gc(GC_calculation):
 ###################################################################################################################################
 
 #Calculation of delta G total for each NN in the input sequence
-AA_NN_sum = AA_delta_g * sum((1.0 for NN in duo_sequence if NN in AA))
-AC_NN_sum = AC_delta_g * sum((1.0 for NN in duo_sequence if NN in AC))
-AG_NN_sum = AG_delta_g * sum((1.0 for NN in duo_sequence if NN in AG))
-AT_NN_sum = AT_delta_g * sum((1.0 for NN in duo_sequence if NN in AT))
-CA_NN_sum = CA_delta_g * sum((1.0 for NN in duo_sequence if NN in CA))
-CC_NN_sum = CC_delta_g * sum((1.0 for NN in duo_sequence if NN in CC))
-CG_NN_sum = CG_delta_g * sum((1.0 for NN in duo_sequence if NN in CG))
-GA_NN_sum = GA_delta_g * sum((1.0 for NN in duo_sequence if NN in GA)) 
-GC_NN_sum = GC_delta_g * sum((1.0 for NN in duo_sequence if NN in GC))
-TA_NN_sum = TA_delta_g * sum((1.0 for NN in duo_sequence if NN in TA))
+AA_NN_sum = AA_delta_g * sum(1.0 for NN in duo_sequence if NN in AA)
+AC_NN_sum = AC_delta_g * sum(1.0 for NN in duo_sequence if NN in AC)
+AG_NN_sum = AG_delta_g * sum(1.0 for NN in duo_sequence if NN in AG)
+AT_NN_sum = AT_delta_g * sum(1.0 for NN in duo_sequence if NN in AT)
+CA_NN_sum = CA_delta_g * sum(1.0 for NN in duo_sequence if NN in CA)
+CC_NN_sum = CC_delta_g * sum(1.0 for NN in duo_sequence if NN in CC)
+CG_NN_sum = CG_delta_g * sum(1.0 for NN in duo_sequence if NN in CG)
+GA_NN_sum = GA_delta_g * sum(1.0 for NN in duo_sequence if NN in GA) 
+GC_NN_sum = GC_delta_g * sum(1.0 for NN in duo_sequence if NN in GC)
+TA_NN_sum = TA_delta_g * sum(1.0 for NN in duo_sequence if NN in TA)
 
 #Calculation of delta H total for each NN in the input sequence
-AA_h_sum = AA_delta_h * sum((1.0 for NN in duo_sequence if NN in AA))
-AC_h_sum = AC_delta_h * sum((1.0 for NN in duo_sequence if NN in AC))
-AG_h_sum = AG_delta_h * sum((1.0 for NN in duo_sequence if NN in AG))
-AT_h_sum = AT_delta_h * sum((1.0 for NN in duo_sequence if NN in AT))
-CA_h_sum = CA_delta_h * sum((1.0 for NN in duo_sequence if NN in CA))
-CC_h_sum = CC_delta_h * sum((1.0 for NN in duo_sequence if NN in CC))
-CG_h_sum = CG_delta_h * sum((1.0 for NN in duo_sequence if NN in CG))
-GA_h_sum = GA_delta_h * sum((1.0 for NN in duo_sequence if NN in GA)) 
-GC_h_sum = GC_delta_h * sum((1.0 for NN in duo_sequence if NN in GC))
-TA_h_sum = TA_delta_h * sum((1.0 for NN in duo_sequence if NN in TA))
+AA_h_sum = AA_delta_h * sum(1.0 for NN in duo_sequence if NN in AA)
+AC_h_sum = AC_delta_h * sum(1.0 for NN in duo_sequence if NN in AC)
+AG_h_sum = AG_delta_h * sum(1.0 for NN in duo_sequence if NN in AG)
+AT_h_sum = AT_delta_h * sum(1.0 for NN in duo_sequence if NN in AT)
+CA_h_sum = CA_delta_h * sum(1.0 for NN in duo_sequence if NN in CA)
+CC_h_sum = CC_delta_h * sum(1.0 for NN in duo_sequence if NN in CC)
+CG_h_sum = CG_delta_h * sum(1.0 for NN in duo_sequence if NN in CG)
+GA_h_sum = GA_delta_h * sum(1.0 for NN in duo_sequence if NN in GA) 
+GC_h_sum = GC_delta_h * sum(1.0 for NN in duo_sequence if NN in GC)
+TA_h_sum = TA_delta_h * sum(1.0 for NN in duo_sequence if NN in TA)
 
 #Calculation of delta S total for each NN in the input sequence
-AA_s_sum = AA_delta_s * sum((1.0 for NN in duo_sequence if NN in AA))
-AC_s_sum = AC_delta_s * sum((1.0 for NN in duo_sequence if NN in AC))
-AG_s_sum = AG_delta_s * sum((1.0 for NN in duo_sequence if NN in AG))
-AT_s_sum = AT_delta_s * sum((1.0 for NN in duo_sequence if NN in AT))
-CA_s_sum = CA_delta_s * sum((1.0 for NN in duo_sequence if NN in CA))
-CC_s_sum = CC_delta_s * sum((1.0 for NN in duo_sequence if NN in CC))
-CG_s_sum = CG_delta_s * sum((1.0 for NN in duo_sequence if NN in CG))
-GA_s_sum = GA_delta_s * sum((1.0 for NN in duo_sequence if NN in GA)) 
-GC_s_sum = GC_delta_s * sum((1.0 for NN in duo_sequence if NN in GC))
-TA_s_sum = TA_delta_s * sum((1.0 for NN in duo_sequence if NN in TA))
+AA_s_sum = AA_delta_s * sum(1.0 for NN in duo_sequence if NN in AA)
+AC_s_sum = AC_delta_s * sum(1.0 for NN in duo_sequence if NN in AC)
+AG_s_sum = AG_delta_s * sum(1.0 for NN in duo_sequence if NN in AG)
+AT_s_sum = AT_delta_s * sum(1.0 for NN in duo_sequence if NN in AT)
+CA_s_sum = CA_delta_s * sum(1.0 for NN in duo_sequence if NN in CA)
+CC_s_sum = CC_delta_s * sum(1.0 for NN in duo_sequence if NN in CC)
+CG_s_sum = CG_delta_s * sum(1.0 for NN in duo_sequence if NN in CG)
+GA_s_sum = GA_delta_s * sum(1.0 for NN in duo_sequence if NN in GA) 
+GC_s_sum = GC_delta_s * sum(1.0 for NN in duo_sequence if NN in GC)
+TA_s_sum = TA_delta_s * sum(1.0 for NN in duo_sequence if NN in TA)
 
 #Sum of all NN enthalpy values for the input sequence
 sum_NN_delta_h = AA_h_sum + AC_h_sum + AG_h_sum + AT_h_sum + CA_h_sum + CC_h_sum + CG_h_sum + GA_h_sum + GC_h_sum + TA_h_sum
@@ -311,11 +312,11 @@ def seq_terminal_comp(initial_base, terminal_base, sum_NN_delta_h, sum_NN_delta_
     AT_h, AT_s, GC_h, GC_s = 2.4, 5.7, .45, -1.7 #h in kcal/mol, s in eu
     dh, ds = 0, 0
 
-    dh_init = sum([dh + AT_h if initial_base in ['A', 'T'] else dh + GC_h])
-    ds_init = sum([ds + AT_s if initial_base in ['A', 'T'] else ds + GC_s])
+    dh_init = (dh + AT_h if initial_base in ['A', 'T'] else dh + GC_h)
+    ds_init = (ds + AT_s if initial_base in ['A', 'T'] else ds + GC_s)
 
-    dh_term = sum([dh + AT_h if terminal_base in ['A', 'T'] else dh + GC_h])
-    ds_term = sum([ds + AT_s if terminal_base in ['A', 'T'] else ds + GC_s])
+    dh_term = (dh + AT_h if terminal_base in ['A', 'T'] else dh + GC_h)
+    ds_term = (ds + AT_s if terminal_base in ['A', 'T'] else ds + GC_s)
 
     dh_total = dh_init + dh_term + sum_NN_delta_h
     ds_total = ds_init + ds_term + sum_NN_delta_s
@@ -344,7 +345,7 @@ dNTPs = .2
 
 def salt_correction(Na, K, Tris, Mg, dNTPs):
     
-    Mon = Na + K + Tris / 2.0
+    Mon = (Na + K + Tris) / 2.0
     mg_adj = Mg * 1e-3 #Converts to mol/L
     mon = Mon * 1e-3
     dntps = dNTPs * 1e-3 
@@ -387,7 +388,7 @@ def salt_correction(Na, K, Tris, Mg, dNTPs):
 
 def primer1_salt_correction(Na, K, Tris, Mg, dNTPs):
     
-    Mon = Na + K + Tris / 2.0
+    Mon = (Na + K + Tris) / 2.0
     mg_adj = Mg * 1e-3 #Converts to mol/L
     mon = Mon * 1e-3
     dntps = dNTPs * 1e-3 
@@ -430,7 +431,7 @@ def primer1_salt_correction(Na, K, Tris, Mg, dNTPs):
 
 def primer2_salt_correction(Na, K, Tris, Mg, dNTPs):
     
-    Mon = Na + K + Tris / 2.0
+    Mon = (Na + K + Tris) / 2.0
     mg_adj = Mg * 1e-3 #Converts to mol/L
     mon = Mon * 1e-3
     dntps = dNTPs * 1e-3 

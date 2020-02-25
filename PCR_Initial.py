@@ -350,17 +350,17 @@ Mon = (Na + K + Tris) / 2.0 #Divide by two to account for the counterion present
 mg_adj = Mg * 1e-3 #Converts to mol/L
 mon = Mon * 1e-3
 dntps = dNTPs * 1e-3 
-ka = 3e4 #Association constant for the Mg2+-dNTP complex. Used to calculate the free magnesium in the buffer
+ka = 3e4 #Association constant for the Mg2+--dNTP complex. Used to calculate the free magnesium in the buffer
 mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 1.0) ** 2 + 4.0 * ka * mg_adj)) / (2.0 * ka)
 
-#Equations from Owczarzy 2008 that adjust melting temperatures according to monovalent ion, magnesium, and dNTP concentrations
+#Equations from Owczarzy 2008 that adjusts melting temperatures according to monovalent ion, magnesium, and dNTP concentrations
 def salt_equations(tm, gc, seq_length, mg, mon):
 
     a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.06e-5, 1.42e-5, -4.82e-4, 5.65e-4, 8.31e-5 #Minimally adjusted constants from the paper
 
     salt1 = (1 / (tm + 273.15)) + ((4.59e-5 * (gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
-    
-    salt2 = inverse_primer1_corr = (1 / (tm + 273.15)) + a + (b * math.log(mg)) + ((gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (seq_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
+
+    salt2 = (1 / (tm + 273.15)) + a + (b * math.log(mg)) + ((gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (seq_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
     
     return salt1, salt2
 

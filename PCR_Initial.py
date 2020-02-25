@@ -4,7 +4,7 @@ import re, math
 Entrez.email = "cookienocreams@outlook.com"
 
 ###################################################################################################################################
-#Modified NN Parameters based on SantaLucia's 1998 paper
+#Modified Nearest Neighbor Parameters based on SantaLucia's 1998 paper
 ###################################################################################################################################
 
 AA_delta_s = -22.15
@@ -241,8 +241,10 @@ duo_sequence = re.findall('.{1,2}', sequence) + re.findall('.{1,2}', sequence[1:
 initial_base = sequence[0]
 terminal_base = sequence[-1]
 
+sequence_length = len(sequence)
+
 #Calculates the GC content of the input DNA sequence and determines whether that percentage is within the ideal range
-GC_calculation = (sum(1.0 for base in sequence if base in ['G', 'C']) / len(sequence)) * 100
+GC_calculation = (sum(1.0 for base in sequence if base in ['G', 'C']) / sequence_length) * 100
 
 def input_sequence_gc(GC_calculation):
 
@@ -296,15 +298,15 @@ TA_s_sum = TA_delta_s * sum(1.0 for NN in duo_sequence if NN in TA)
 
 #Sum of all NN enthalpy values for the input sequence
 sum_NN_delta_h = AA_h_sum + AC_h_sum + AG_h_sum + AT_h_sum + CA_h_sum + CC_h_sum + CG_h_sum + GA_h_sum + GC_h_sum + TA_h_sum
-avg_delta_H = round((sum_NN_delta_h) / (len(sequence) / 2), 2)
+avg_delta_H = round((sum_NN_delta_h) / (sequence_length / 2), 2)
 
 #Sum of all NN entropy values for the input sequence
 sum_NN_delta_s = AA_s_sum + AC_s_sum + AG_s_sum + AT_s_sum + CA_s_sum + CC_s_sum + CG_s_sum + GA_s_sum + GC_s_sum + TA_s_sum
-avg_delta_S = round((sum_NN_delta_s) / (len(sequence) / 2), 2)
+avg_delta_S = round((sum_NN_delta_s) / (sequence_length / 2), 2)
 
 #Sum of all NN Gibb's free energy values for the input sequence
 sum_NN_delta_g = AA_NN_sum + AC_NN_sum + AG_NN_sum + AT_NN_sum + CA_NN_sum + CC_NN_sum + CG_NN_sum + GA_NN_sum + GC_NN_sum + TA_NN_sum
-avg_delta_G = round((sum_NN_delta_g) / (len(sequence) / 2), 2)
+avg_delta_G = round((sum_NN_delta_g) / (sequence_length / 2), 2)
 
 #Calculates the entropic and enthalpic compensation for the ends of the input sequence
 def seq_terminal_comp(initial_base, terminal_base, sum_NN_delta_h, sum_NN_delta_s):
@@ -326,7 +328,7 @@ def seq_terminal_comp(initial_base, terminal_base, sum_NN_delta_h, sum_NN_delta_
 total_h, total_s = seq_terminal_comp(initial_base, terminal_base, sum_NN_delta_h, sum_NN_delta_s)
 
 ###################################################################################################################################
-#Melting Temperature Adjustments
+#Melting Temperature Calculation and Salt Adjustments
 ###################################################################################################################################
 
 #Input sequence melting temperature calculation
@@ -343,24 +345,41 @@ Tris = 20
 Mg = 1.5
 dNTPs = .2
 
-def salt_correction(Na, K, Tris, Mg, dNTPs):
+#Adjustments and unit conversions for the chosen buffer conditions
+Mon = (Na + K + Tris) / 2.0 #Divide by two to account for the counterion present, e.g. Cl-, SO4-, etc.
+mg_adj = Mg * 1e-3 #Converts to mol/L
+mon = Mon * 1e-3
+dntps = dNTPs * 1e-3 
+ka = 3e4 #Association constant for the Mg2+-dNTP complex. Used to calculate the free magnesium in the buffer
+mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 1.0) ** 2 + 4.0 * ka * mg_adj)) / (2.0 * ka)
+
+#Equations from Owczarzy 2008 that adjust melting temperatures according to monovalent ion, magnesium, and dNTP concentrations
+def salt_equations(tm, gc, seq_length, mg, mon):
+
+    a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.06e-5, 1.42e-5, -4.82e-4, 5.65e-4, 8.31e-5 #Minimally adjusted constants from the paper
+
+    salt1 = (1 / (tm + 273.15)) + ((4.59e-5 * (gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
     
-    Mon = (Na + K + Tris) / 2.0
-    mg_adj = Mg * 1e-3 #Converts to mol/L
-    mon = Mon * 1e-3
-    dntps = dNTPs * 1e-3 
-    ka = 3e4
-    mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 1.0) ** 2 + 4.0 * ka * mg_adj)) / (2.0 * ka)
+    salt2 = inverse_primer1_corr = (1 / (tm + 273.15)) + a + (b * math.log(mg)) + ((gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (seq_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
+    
+    return salt1, salt2
+
+salt_eq1, salt_eq2 = salt_equations(melting_temperature, GC_calculation, sequence_length, mg, mon)
+p1_salt_eq1, p1_salt_eq2 = salt_equations(primer1_melting_temperature, primer1_gc, primer1_length, mg, mon)
+p2_salt_eq1, p2_salt_eq2 = salt_equations(primer2_melting_temperature, primer2_gc, primer2_length, mg, mon)
+
+def salt_correction(salt_eq1, salt_eq2, mg, mon):
+    
+    if mon == 0:
+        return round((1 / salt_eq2) - 273.15, 1)
+
     R = math.sqrt(mg) / mon 
-    b, c, e, f = -9.11e-6, 6.06e-5, -4.82e-4, 5.65e-4 #in K-1
 
     if R < 0.22:
-        
-        inverse_mg_corr = (1 / (melting_temperature + 273.15)) + ((4.59e-5 * (GC_calculation / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
+        return round((1 / salt_eq1) - 273.15, 1)
 
-        corr = (1 / inverse_mg_corr) - 273.15
-
-        return corr
+    elif R > 6.0:
+        return round((1 / salt_eq2) - 273.15, 1)
 
     elif R < 6.0:
 
@@ -368,42 +387,20 @@ def salt_correction(Na, K, Tris, Mg, dNTPs):
         d = 1.42e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
         g = 8.31e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
 
-        inverse_mg_corr = (1 / (melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((GC_calculation / 100) * (c + d * math.log(mg))) + (1 / (2.0 * ((len(sequence) - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2))
+        return round((1 / salt_eq2) - 273.15, 1)
 
-        corr = (1 / inverse_mg_corr) - 273.15
-
-        return corr
-
-    elif R > 6.0:
-
-        a = 3.92e-5
-        d = 1.42e-5
-        g = 8.31e-5 
-
-        inverse_mg_corr = (1 / (melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((GC_calculation / 100) * (c + d * math.log(mg))) + (1 / (2.0 * ((len(sequence) - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2))
-
-        corr = (1 / inverse_mg_corr) - 273.15
-
-        return corr
-
-def primer1_salt_correction(Na, K, Tris, Mg, dNTPs):
+def primer1_salt_correction(p1_salt_eq1, p1_salt_eq2, mg, mon):
     
-    Mon = (Na + K + Tris) / 2.0
-    mg_adj = Mg * 1e-3 #Converts to mol/L
-    mon = Mon * 1e-3
-    dntps = dNTPs * 1e-3 
-    ka = 3e4
-    mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 1.0) ** 2 + 4.0 * ka * mg_adj)) / (2.0 * ka)
+    if mon == 0:
+        return round((1 / salt_eq2) - 273.15, 1)
+
     R = math.sqrt(mg) / mon 
-    b, c, e, f = -9.11e-6, 6.06e-5, -4.82e-4, 5.65e-4 #in K-1
 
     if R < 0.22:
+        return round((1 / p1_salt_eq1) - 273.15, 1)
 
-        inverse_primer1_corr = (1 / (primer1_melting_temperature + 273.15)) + ((4.59e-5 * (primer1_gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
-
-        corr = (1 / inverse_primer1_corr) - 273.15
-
-        return corr
+    elif R > 6.0:
+        return round((1 / p1_salt_eq2) - 273.15, 1)
 
     elif R < 6.0:
 
@@ -411,42 +408,20 @@ def primer1_salt_correction(Na, K, Tris, Mg, dNTPs):
         d = 1.42e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
         g = 8.31e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
 
-        inverse_primer1_corr = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
-        
-        corr = (1 / inverse_primer1_corr) - 273.15
+        return round((1 / p1_salt_eq2) - 273.15, 1)
 
-        return corr
+def primer2_salt_correction(p2_salt_eq1, p2_salt_eq2, mg, mon):
     
-    elif R > 6.0:
+    if mon == 0:
+        return round((1 / p2_salt_eq2) - 273.15, 1)
 
-        a = 3.92e-5
-        d = 1.42e-5
-        g = 8.31e-5
-
-        inverse_primer1_corr = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
-
-        corr = (1 / inverse_primer1_corr) - 273.15
-
-        return corr
-
-def primer2_salt_correction(Na, K, Tris, Mg, dNTPs):
-    
-    Mon = (Na + K + Tris) / 2.0
-    mg_adj = Mg * 1e-3 #Converts to mol/L
-    mon = Mon * 1e-3
-    dntps = dNTPs * 1e-3 
-    ka = 3e4
-    mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 1.0) ** 2 + 4.0 * ka * mg_adj)) / (2.0 * ka)
     R = math.sqrt(mg) / mon 
-    b, c, e, f = -9.11e-6, 6.06e-5, -4.82e-4, 5.65e-4 #in K-1
 
     if R < 0.22:
-        
-        inverse_primer2_corr = (1 / (primer2_melting_temperature + 273.15)) + ((4.59e-5 * (primer2_gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
+        return round((1 / p2_salt_eq1) - 273.15, 1)
 
-        corr = (1 / inverse_primer2_corr) - 273.15
-
-        return corr
+    elif R > 6.0:
+        return round((1 / p2_salt_eq2) - 273.15, 1)
 
     elif R < 6.0:
 
@@ -454,27 +429,11 @@ def primer2_salt_correction(Na, K, Tris, Mg, dNTPs):
         d = 1.42e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
         g = 8.31e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
 
-        inverse_primer2_corr = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
-        
-        corr = (1 / inverse_primer2_corr) - 273.15
+        return round((1 / p2_salt_eq2) - 273.15, 1)
 
-        return corr
-
-    elif R > 6.0:
-
-        a = 3.92e-5
-        d = 1.42e-5
-        g = 8.31e-5 
-
-        inverse_primer2_corr = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
-
-        corr = (1 / inverse_primer2_corr) - 273.15
-
-        return corr
-
-salty_melting_temperature = salt_correction(Na, K, Tris, Mg, dNTPs)
-adj_primer1_melting_temperature = primer1_salt_correction(Na, K, Tris, Mg, dNTPs)
-adj_primer2_melting_temperature = primer2_salt_correction(Na, K, Tris, Mg, dNTPs)
+salty_melting_temperature = salt_correction(salt_eq1, salt_eq2, mg, mon)
+adj_primer1_melting_temperature = primer1_salt_correction(p1_salt_eq1, p1_salt_eq2, mg, mon)
+adj_primer2_melting_temperature = primer2_salt_correction(p2_salt_eq1, p2_salt_eq2, mg, mon)
 
 def DMSO_correction(salty_melting_temperature, GC_calculation):
 

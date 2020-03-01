@@ -354,32 +354,29 @@ ka = 3e4 #Association constant for the Mg2+--dNTP complex. Used to calculate the
 mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 1.0) ** 2 + 4.0 * ka * mg_adj)) / (2.0 * ka)
 
 #Equations from Owczarzy 2008 that adjusts melting temperatures according to monovalent ion, magnesium, and dNTP concentrations
-def salt_equations(tm, gc, seq_length, mg, mon):
+def salt_correction(GC_calculation, mon):
 
-    a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.06e-5, 1.42e-5, -4.82e-4, 5.65e-4, 8.31e-5 #Minimally adjusted constants from the paper
-
-    salt1 = (1 / (tm + 273.15)) + ((4.59e-5 * (gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
-
-    salt2 = (1 / (tm + 273.15)) + a + (b * math.log(mg)) + ((gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (seq_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
+    seq_tm = 449.15 - (2.60 - (GC_calculation / 100)) * (36.0 - (7.04 * math.log10(mon)))
     
-    return salt1, salt2
+    return round(seq_tm - 273.15, 1)
 
-salt_eq1, salt_eq2 = salt_equations(melting_temperature, GC_calculation, sequence_length, mg, mon)
-p1_salt_eq1, p1_salt_eq2 = salt_equations(primer1_melting_temperature, primer1_gc, primer1_length, mg, mon)
-p2_salt_eq1, p2_salt_eq2 = salt_equations(primer2_melting_temperature, primer2_gc, primer2_length, mg, mon)
+def primer1_salt_correction(primer1_melting_temperature, primer1_gc, primer1_length, mg, mon):
 
-def salt_correction(salt_eq1, salt_eq2, mg, mon):
+    a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.06e-5, 1.42e-5, -4.82e-4, 5.65e-4, 8.31e-5
     
     if mon == 0:
-        return round((1 / salt_eq2) - 273.15, 1)
+
+        salt2 = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
+
+        return round((1 / salt2) - 273.15, 1)
 
     R = math.sqrt(mg) / mon 
 
     if R < 0.22:
-        return round((1 / salt_eq1) - 273.15, 1)
 
-    elif R > 6.0:
-        return round((1 / salt_eq2) - 273.15, 1)
+        salt1 = (1 / (primer1_melting_temperature + 273.15)) + ((4.59e-5 * (primer1_gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
+
+        return round((1 / salt1) - 273.15, 1)
 
     elif R < 6.0:
 
@@ -387,20 +384,33 @@ def salt_correction(salt_eq1, salt_eq2, mg, mon):
         d = 1.42e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
         g = 8.31e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
 
-        return round((1 / salt_eq2) - 273.15, 1)
+        salt2 = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
 
-def primer1_salt_correction(p1_salt_eq1, p1_salt_eq2, mg, mon):
+        return round((1 / salt2) - 273.15, 1)
+    
+    elif R > 6.0:
+
+        salt2 = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
+
+        return round((1 / salt2) - 273.15,1)
+
+def primer2_salt_correction(primer2_melting_temperature, primer2_gc, primer2_length, mg, mon):
+
+    a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.06e-5, 1.42e-5, -4.82e-4, 5.65e-4, 8.31e-5
     
     if mon == 0:
-        return round((1 / salt_eq2) - 273.15, 1)
+
+        salt2 = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
+
+        return round((1 / salt2) - 273.15, 1)
 
     R = math.sqrt(mg) / mon 
 
     if R < 0.22:
-        return round((1 / p1_salt_eq1) - 273.15, 1)
 
-    elif R > 6.0:
-        return round((1 / p1_salt_eq2) - 273.15, 1)
+        salt1 = (1 / (primer2_melting_temperature + 273.15)) + ((4.59e-5 * (primer2_gc / 100)) - 2.90e-5) * math.log(mon) + 8.81e-6 * (math.log(mon)) ** 2
+
+        return round((1 / salt1) - 273.15, 1)
 
     elif R < 6.0:
 
@@ -408,32 +418,19 @@ def primer1_salt_correction(p1_salt_eq1, p1_salt_eq2, mg, mon):
         d = 1.42e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
         g = 8.31e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
 
-        return round((1 / p1_salt_eq2) - 273.15, 1)
+        salt2 = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
 
-def primer2_salt_correction(p2_salt_eq1, p2_salt_eq2, mg, mon):
+        return round((1 / salt2) - 273.15, 1)
     
-    if mon == 0:
-        return round((1 / p2_salt_eq2) - 273.15, 1)
-
-    R = math.sqrt(mg) / mon 
-
-    if R < 0.22:
-        return round((1 / p2_salt_eq1) - 273.15, 1)
-
     elif R > 6.0:
-        return round((1 / p2_salt_eq2) - 273.15, 1)
 
-    elif R < 6.0:
+        salt2 = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
 
-        a = 3.92e-5 * (0.843 - (0.352 * math.sqrt(mon) * math.log(mon)))
-        d = 1.42e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
-        g = 8.31e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
+        return round((1 / salt2) - 273.15,1)
 
-        return round((1 / p2_salt_eq2) - 273.15, 1)
-
-salty_melting_temperature = salt_correction(salt_eq1, salt_eq2, mg, mon)
-adj_primer1_melting_temperature = primer1_salt_correction(p1_salt_eq1, p1_salt_eq2, mg, mon)
-adj_primer2_melting_temperature = primer2_salt_correction(p2_salt_eq1, p2_salt_eq2, mg, mon)
+salty_melting_temperature = salt_correction(GC_calculation, mon)
+adj_primer1_melting_temperature = primer1_salt_correction(primer1_melting_temperature, primer1_gc, primer1_length, mg, mon)
+adj_primer2_melting_temperature = primer2_salt_correction(primer2_melting_temperature, primer2_gc, primer2_length, mg, mon)
 
 def DMSO_correction(salty_melting_temperature, GC_calculation):
 

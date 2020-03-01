@@ -19,11 +19,12 @@ gas_constant = 8.31445984848484848484 #J K-1-mol-1
 primer1_length = len(primer1)
 primer2_length = len(primer2)
 
-p1_terminal_base = primer1[-1]
+#Captures the first and last base in each primer so that the energies associated with opening the helix can be calculated
 p1_initial_base = primer1[0]
+p1_terminal_base = primer1[-1]
 
-p2_terminal_base = primer2[-1]
 p2_initial_base = primer2[0]
+p2_terminal_base = primer2[-1]
 
 oligo_c = (oligo1_conc) * 1e-6
 
@@ -38,12 +39,12 @@ def get_primer_gc(primer1, primer2):
 primer1_gc, primer2_gc = get_primer_gc(primer1, primer2)
 
 ###################################################################################################################################
-#Determine terminal base compensation parameters for each primer
+#Determines terminal base compensation parameters for each primer
 ###################################################################################################################################
 
 def p1_end_comp(p1_initial_base, p1_terminal_base):
 
-    AT_h, AT_s, GC_h, GC_s = 2.53, 5.7, .49, -.7
+    AT_h, AT_s, GC_h, GC_s = 2.3, 5.7, .29, -.3
     dh_comp, ds_comp = 0, 0
 
     if p1_initial_base in ['A', 'T']:
@@ -70,7 +71,7 @@ def p1_end_comp(p1_initial_base, p1_terminal_base):
 
 def p2_end_comp(p2_initial_base,p2_terminal_base):
 
-    AT_h, AT_s, GC_h, GC_s = 2.53, 5.7, .49, -.7
+    AT_h, AT_s, GC_h, GC_s = 2.3, 5.7, .29, -.3
     dh_comp, ds_comp = 0, 0
 
     if p2_initial_base in ['A', 'T']:
@@ -99,17 +100,17 @@ p1_term_h, p1_term_s = p1_end_comp(p1_initial_base,p1_terminal_base)
 p2_term_h, p2_term_s = p2_end_comp(p2_initial_base,p2_terminal_base)
 
 ###################################################################################################################################
-#Melting Temperature Adjustments
+#Melting Temperature Calculation and Salt Adjustments
 ###################################################################################################################################
 
-#Determines the melting temperature of the primers based on the method developed by Privalov and Crane-Robinson
+#Determines the melting temperature of each primer based on the method developed by Privalov and Crane-Robinson
 #See Privalov, P. L., & Crane-Robinson, C. (2018). https://doi.org/10.1016/j.pbiomolbio.2018.01.007
 def p1_melting_calculation(primer1, p1_term_h, p1_term_s):
     
     heat_capacity = .13 #kJ/K,mol-bp
-    H_A_25, H_T_25 = 25.18, 23 #kJ/mol-bp
-    S_A_25, S_T_25 = 71.81, 65 #J/K-mol-bp
-    H_CG_25 = 18.5
+    H_A_25, H_T_25 = 25.25, 23.5 #kJ/mol-bp
+    S_A_25, S_T_25 = 71.81, 64 #J/K-mol-bp
+    H_CG_25 = 18.3
     S_CG_25 = 44.9
     delta_S_trans = gas_constant * math.log(2 / oligo_c)
     n_A, n_T = primer1.count('A'), primer1.count('T')
@@ -125,9 +126,9 @@ def p1_melting_calculation(primer1, p1_term_h, p1_term_s):
 def p2_melting_calculation(primer2, p2_term_h, p2_term_s):
     
     heat_capacity = .13 #kJ/K,mol-bp
-    H_A_25, H_T_25 = 25.18, 23 #kJ/mol-bp
-    S_A_25, S_T_25 = 71.81, 65 #J/K-mol-bp
-    H_CG_25 = 18.5
+    H_A_25, H_T_25 = 25.25, 23.5 #kJ/mol-bp
+    S_A_25, S_T_25 = 71.81, 64 #J/K-mol-bp
+    H_CG_25 = 18.3
     S_CG_25 = 44.9
     delta_S_trans = gas_constant * math.log(2 / oligo_c)
     n_A, n_T = primer2.count('A'), primer2.count('T')

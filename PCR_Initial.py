@@ -278,10 +278,9 @@ def gc_tm_adjustment(adj_primer1_melting_temperature, adj_primer2_melting_temper
         p1_tm = float(adj_primer1_melting_temperature + (low_gc * (52 - primer1_gc)))
 
     elif primer1_gc >= 45 and primer1_gc <= 65:
-        if primer1_length >=25:
-            if round(primer1_gc) in [47,48,49,50,51,52]:
-                
-                p1_tm = float(.959 * (adj_primer1_melting_temperature - (mid_gc * (primer1_gc - 50))))
+        if primer1_length >=25 and round(primer1_gc) in [47,48,49,50,51,52]:
+
+            p1_tm = float(.959 * (adj_primer1_melting_temperature - (mid_gc * (primer1_gc - 50))))
         else:
             p1_tm = float((adj_primer1_melting_temperature - (mid_gc * (primer1_gc - 50))))
 
@@ -304,10 +303,9 @@ def gc_tm_adjustment(adj_primer1_melting_temperature, adj_primer2_melting_temper
         p2_tm = float(adj_primer2_melting_temperature + (low_gc * (52 - primer2_gc)))
 
     elif primer2_gc >= 45 and primer2_gc <= 65:
-        if primer2_length >=25:
-            if round(primer2_gc) in [47,48,49,50,51,52]:
+        if primer2_length >=25 and round(primer2_gc) in [47,48,49,50,51,52]:
 
-                p2_tm = float(.959 * (adj_primer2_melting_temperature - (mid_gc * (primer2_gc - 50))))
+            p2_tm = float(.959 * (adj_primer2_melting_temperature - (mid_gc * (primer2_gc - 50))))
         else:
             p2_tm = float((adj_primer2_melting_temperature - (mid_gc * (primer2_gc - 50))))
 

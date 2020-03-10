@@ -4,7 +4,7 @@ import math,re
 #Prompts to get the information required to begin the analysis
 #Primer and buffer information is input here
 #The primer sequences will be analyzed first by calculating their GC content
-#Analysis of primer melting temperatures occurs last
+#Primer melting temperature calculation and adjustment occurs last
 ###################################################################################################################################
 
 primer1 = input('Input primer 1 sequence here: ') #Right now there are two inputs for non-complentary primers
@@ -52,21 +52,14 @@ def p1_end_comp(p1_initial_base, p1_terminal_base):
     AT_h, AT_s, GC_h, GC_s = 2.3, 4.1, .1, -2.8 #Compensation values for enthalpy and entropy in kcal/mol and eu
     dh_compensation, ds_compensation = 0, 0
 
-    if p1_initial_base in ['A', 'T']:
-            dh_compensation += AT_h
-            ds_compensation += AT_s
+    dh_init = (dh_compensation + AT_h if p1_initial_base in ['A', 'T'] else dh_compensation + GC_h)
+    ds_init = (ds_compensation + AT_s if p1_initial_base in ['A', 'T'] else ds_compensation + GC_s)
 
-    if p1_initial_base in ['C', 'G']:
-            dh_compensation += GC_h
-            ds_compensation += GC_s
+    dh_term = (dh_compensation + AT_h if p1_terminal_base in ['A', 'T'] else dh_compensation + GC_h)
+    ds_term = (ds_compensation + AT_s if p1_terminal_base in ['A', 'T'] else ds_compensation + GC_s)
 
-    if p1_terminal_base in ['A', 'T']:
-            dh_compensation += AT_h
-            ds_compensation += AT_s
-
-    if p1_terminal_base in ['C', 'G']:
-            dh_compensation += GC_h
-            ds_compensation += GC_s
+    dh_compensation = dh_init + dh_term
+    ds_compensation = ds_init + ds_term
 
     return dh_compensation, ds_compensation
 
@@ -75,21 +68,14 @@ def p2_end_comp(p2_initial_base,p2_terminal_base):
     AT_h, AT_s, GC_h, GC_s = 2.3, 4.1, .1, -2.8 #dh in kcal/mol, ds in eu
     dh_compensation, ds_compensation = 0, 0
 
-    if p2_initial_base in ['A', 'T']:
-            dh_compensation += AT_h
-            ds_compensation += AT_s
+    dh_init = (dh_compensation + AT_h if p2_initial_base in ['A', 'T'] else dh_compensation + GC_h)
+    ds_init = (ds_compensation + AT_s if p2_initial_base in ['A', 'T'] else ds_compensation + GC_s)
 
-    if p2_initial_base in ['C', 'G']:
-            dh_compensation += GC_h
-            ds_compensation += GC_s
+    dh_term = (dh_compensation + AT_h if p2_terminal_base in ['A', 'T'] else dh_compensation + GC_h)
+    ds_term = (ds_compensation + AT_s if p2_terminal_base in ['A', 'T'] else ds_compensation + GC_s)
 
-    if p2_terminal_base in ['A', 'T']:
-            dh_compensation += AT_h
-            ds_compensation += AT_s
-
-    if p2_terminal_base in ['C', 'G']:
-            dh_compensation += GC_h
-            ds_compensation += GC_s
+    dh_compensation = dh_init + dh_term
+    ds_compensation = ds_init + ds_term
 
     return dh_compensation, ds_compensation
 
@@ -99,24 +85,115 @@ p2_term_h, p2_term_s = p2_end_comp(p2_initial_base,p2_terminal_base)
 ###################################################################################################################################
 #Melting Temperature Calculation and Salt Adjustments
 ###################################################################################################################################
+'''
+This section attempts to correct the model's accuracy discrepancy when computing the melting temperatures of oligos with 
+different base sequences but the same GC content. Those types of oligos can differ by as much as 4C or more, however, 
+Privalov and Crane-Robinson's model doesn't contain any way to account for those differences. I think the discrepancy 
+may be due to the presence of alternating purine and pyrimidine bases. The alternating pairs may break up water binding
+to adenine and thymine residues, thus decreasing the entropy cost associated with that water binding. In theory, the longer 
+the alternating purine and pyrimidine chain, the more stable the helix is. Conversely, the more long strings of repeating
+pyrimidine bases, the less stable the helix.
+'''
+RY_primer1_str = ''.join(['R' if base in purine else 'Y' for base in primer1])#Converts each primer into the nucleotide codes
+RY_primer2_str = ''.join(['R' if base in purine else 'Y' for base in primer2])#R and Y for purine and pyrimidine bases
+
+RY_pairs_p1 = re.findall('(?:RY){2,}', RY_primer1_str) #Generates a list of repeating purine and pyrimidine sequences
+RY_pairs_p2 = re.findall('(?:RY){2,}', RY_primer2_str) #in each primer. Only includes sequences with two or more repeats.
+
+AT_pairs_p1 = re.findall('(?:A|T){1}(?:A|T){1,}', primer1) #Generates a list of repeating adenine and thymine sequences
+AT_pairs_p2 = re.findall('(?:A|T){1}(?:A|T){1,}', primer2) #in each primer. Only includes sequences with two or more repeats.
+
+GC_pairs_p1 = re.findall('(?:G|C){1}(?:G|C){1,}', primer1) #Generates a list of repeating guanine and thymine cytosine
+GC_pairs_p2 = re.findall('(?:G|C){1}(?:G|C){1,}', primer2) #in each primer. Only includes sequences with two or more repeats.
+
+''' The above lists are needed so that their respective influences on helix stability can be measured and quantified, assuming
+there is some influence. Don't yet know how best to do that. The functions below attempts to apply those differences to appropriately 
+modify the melting temperature.
+'''
+#These pair length functions take the lists of pairs above and convert those captured sequences into lengths.
+def p1_pair_lengths(AT_pairs_p1, GC_pairs_p1, RY_pairs_p1):
+
+    AT_len, GC_len, RY_len = [], [], []
+
+    for seq in AT_pairs_p1:
+        AT_len.append(len(seq))
+    for seq in GC_pairs_p1:
+        GC_len.append(len(seq))
+    for seq in RY_pairs_p1:
+        RY_len.append(len(seq))
+            
+    return AT_len, GC_len, RY_len
+
+def p2_pair_lengths(AT_pairs_p2, GC_pairs_p2, RY_pairs_p2):
+
+    AT_len, GC_len, RY_len = [], [], []
+
+    for seq in AT_pairs_p2:
+        AT_len.append(len(seq))
+    for seq in GC_pairs_p2:
+        GC_len.append(len(seq))
+    for seq in RY_pairs_p2:
+        RY_len.append(len(seq))
+            
+    return AT_len, GC_len, RY_len
+
+p1_AT_lengths, p1_GC_lengths, p1_RY_lengths = p1_pair_lengths(AT_pairs_p1, GC_pairs_p1, RY_pairs_p1)
+p2_AT_lengths, p2_GC_lengths, p2_RY_lengths = p2_pair_lengths(AT_pairs_p2, GC_pairs_p2, RY_pairs_p2)
 
 #Determines the primers' melting temperature based on the method developed by Privalov and Crane-Robinson
 #See Privalov, P. L., & Crane-Robinson, C. (2018). https://doi.org/10.1016/j.pbiomolbio.2018.01.007
-#Separated A and T bases to give a little more flexibility. My unfounded guess is that there is some difference
-#in water binding by adenine and thymine. Not sure if it actually helps or not.
 heat_capacity = .13 #kJ/K,mol-bp
-H_A_25, H_T_25 = 25, 25 #kJ/mol-bp
-S_A_25, S_T_25 = 72, 72 #J/K-mol-bp
-H_CG_25, S_CG_25 = 18.9, 44.7
+H_AT_25, H_CG_25 = 25, 18.8 #kJ/mol-bp
+S_AT_25, S_CG_25 = 72, 44.7 #J/K-mol-bp
 delta_S_trans = gas_constant * math.log(2 / oligo_c)
 
 def p1_melting_calculation(primer1, p1_term_h, p1_term_s):
+
+    n_AT = primer1.count('A') + primer1.count('T') #Counts the number of each base in the primer
+    n_CG = primer1.count('C') + primer1.count('G') #Used to calculate total enthalpy and entropy
     
-    n_A, n_T = primer1.count('A'), primer1.count('T') #Counts the number of each base in the primer
-    n_CG = primer1.count('C') + primer1.count('G')
     #Total enthalpy and entropy value calculations for determining the melting temperature. Takes the heat capacity into account.
-    delta_H = ((H_A_25 + (heat_capacity * (311.5 - 298.15))) * n_A) + ((H_T_25 + (heat_capacity * (311.5 - 298.15))) * n_T) + ((H_CG_25 + (heat_capacity * (311.5 - 298.15))) * n_CG) + p1_term_h
-    delta_S = ((S_A_25 + (heat_capacity * math.log(311.5 / 298.15))) * n_A) + ((S_T_25 + (heat_capacity * math.log(311.5 / 298.15))) * n_T) + ((S_CG_25 + (heat_capacity * math.log((311.5) / 298.15))) * n_CG) + p1_term_s
+    delta_H = ((H_AT_25 + (heat_capacity * (311.5 - 298.15))) * n_AT) + ((H_CG_25 + (heat_capacity * (311.5 - 298.15))) * n_CG) + p1_term_h
+    delta_S = ((S_AT_25 + (heat_capacity * math.log(311.5 / 298.15))) * n_AT) + ((S_CG_25 + (heat_capacity * math.log((311.5) / 298.15))) * n_CG) + p1_term_s
+    '''
+The constraints here and below are subject to change as they are first guesses based on the limited data availale. As more
+data is gathered, the length cut-offs and the correction values will likely change.
+'''
+    if len(primer1) > 15:
+        for num in p1_AT_lengths:
+            if num > 5:
+                delta_S += 2.0
+        for num in p1_GC_lengths:
+            if num >= 5:
+                delta_S -= .75
+        for num in p1_AT_lengths:
+            if num >= 4:
+                delta_S += .5
+        for num in p1_GC_lengths:
+            if num >= 4:
+                delta_S -= .7
+        for num in p1_AT_lengths:
+            if num >= 3:
+                delta_S += .6
+        for num in p1_GC_lengths:
+            if num >= 2:
+                delta_S -= .55
+    else: #Loosens the length restrictions for short sequences
+        for num in p1_AT_lengths:
+            if num > 3:
+                delta_S += 2.0
+        for num in p1_GC_lengths:
+            if num > 3:
+                delta_S -= .75
+        for num in p1_AT_lengths:
+            if num > 2:
+                delta_S += .5
+        for num in p1_GC_lengths:
+            if num >= 2:
+                delta_S -= .6
+        for num in p1_AT_lengths:
+            if num >= 2:
+                delta_S += .55
 
     tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2 / oligo_c)))) - 298.15
 
@@ -124,11 +201,46 @@ def p1_melting_calculation(primer1, p1_term_h, p1_term_s):
 
 def p2_melting_calculation(primer2, p2_term_h, p2_term_s):
 
-    n_A, n_T = primer2.count('A'), primer2.count('T')
-    n_CG = primer2.count('C') + primer2.count('G')
+    n_AT, n_CG = primer2.count('A') + primer2.count('T'), primer2.count('C') + primer2.count('G')
 
-    delta_H = ((H_A_25 + (heat_capacity * (311.5 - 298.15))) * n_A) + ((H_T_25 + (heat_capacity * (311.5 - 298.15))) * n_T) + ((H_CG_25 + (heat_capacity * (311.5 - 298.15))) * n_CG) + p2_term_h
-    delta_S = ((S_A_25 + (heat_capacity * math.log(311.5 / 298.15))) * n_A) + ((S_T_25 + (heat_capacity * math.log(311.5 / 298.15))) * n_T) + ((S_CG_25 + (heat_capacity * math.log((311.5) / 298.15))) * n_CG) + p2_term_s
+    delta_H = ((H_AT_25 + (heat_capacity * (311.5 - 298.15))) * n_AT) + ((H_CG_25 + (heat_capacity * (311.5 - 298.15))) * n_CG) + p2_term_h
+    delta_S = ((S_AT_25 + (heat_capacity * math.log(311.5 / 298.15))) * n_AT) + ((S_CG_25 + (heat_capacity * math.log((311.5) / 298.15))) * n_CG) + p2_term_s
+
+    if len(primer2) > 15:
+        for num in p2_AT_lengths:
+            if num > 5:
+                delta_S += 2.0
+        for num in p2_GC_lengths:
+            if num >= 5:
+                delta_S -= .75
+        for num in p2_AT_lengths:
+            if num >= 4:
+                delta_S += .5
+        for num in p2_GC_lengths:
+            if num >= 4:
+                delta_S -= .6
+        for num in p2_AT_lengths:
+            if num >= 3:
+                delta_S += .6
+        for num in p2_GC_lengths:
+            if num >= 2:
+                delta_S -= .55
+    else:
+        for num in p2_AT_lengths:
+            if num > 3:
+                delta_S += 2.0
+        for num in p2_GC_lengths:
+            if num > 3:
+                delta_S -= .75
+        for num in p2_AT_lengths:
+            if num > 2:
+                delta_S += .5
+        for num in p2_GC_lengths:
+            if num >= 2:
+                delta_S -= .6
+        for num in p2_AT_lengths:
+            if num >= 2:
+                delta_S += .55
 
     tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2 / oligo_c)))) - 298.15
 
@@ -261,7 +373,7 @@ higher correction values are used to account for that length dependent effect.
             p1_tm = float(adj_primer1_melting_temperature - (high_gc * (primer1_gc - 48)))
         else:
 
-            high_gc = .566667
+            high_gc = .586667
             p1_tm = float(adj_primer1_melting_temperature - (high_gc * (primer1_gc - 48))) 
     return p1_tm
 
@@ -292,14 +404,13 @@ def p2_gc_tm_adjustment(adj_primer2_melting_temperature, primer2_gc):
 
         else:
 
-            high_gc = .566667
+            high_gc = .586667
             p2_tm = float(adj_primer2_melting_temperature - (high_gc * (primer2_gc - 48))) 
 
     return p2_tm
 
 p1_tm = p1_gc_tm_adjustment(adj_primer1_melting_temperature, primer1_gc)
 p2_tm = p2_gc_tm_adjustment(adj_primer2_melting_temperature, primer2_gc)
-
 ###################################################################################################################################
 #Printing the results
 ###################################################################################################################################

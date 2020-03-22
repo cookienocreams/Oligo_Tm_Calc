@@ -48,25 +48,37 @@ AT_pairs_p2 = re.findall('(?:A|T){1}(?:A|T){1,}', primer2) #in each primer. Only
 
 GC_pairs_p1 = re.findall('(?:G|C){1}(?:G|C){1,}', primer1) #Generates a list of repeating guanine and thymine cytosine
 GC_pairs_p2 = re.findall('(?:G|C){1}(?:G|C){1,}', primer2) #in each primer. Only includes sequences with two or more repeats.
+
+RY_primer1_str = ''.join(['R' if base in purine else 'Y' for base in primer1])#Converts each primer into the nucleotide codes
+RY_primer2_str = ''.join(['R' if base in purine else 'Y' for base in primer2])#R and Y for purine and pyrimidine bases
+
+RY_pairs_p1 = re.findall('(?:RY){2,}', RY_primer1_str) #Generates a list of repeating purine and pyrimidine sequences
+RY_pairs_p2 = re.findall('(?:RY){2,}', RY_primer2_str) #in each primer. Only includes sequences with two or more repeats.
+
+YY_pairs_p1 = re.findall('(?:YY){2,}', RY_primer1_str) #Generates a list of repeating pyrimidine sequences
+YY_pairs_p2 = re.findall('(?:YY){2,}', RY_primer2_str) ##in each primer. Only includes sequences with two or more repeats.
 '''
 The above lists are needed so that their respective influences on helix stability can be measured and quantified, assuming
 there is some influence. Don't yet know how best to do that. The functions below attempts to apply those differences to appropriately 
 modify the melting temperature.
 '''
-#These variables take those captured sequences from the lists of pairs above and convert into lengths. The lengths will then
+#These variables take those captured sequences from the lists of pairs above and convert them into lengths. The lengths will then
 #be used to alter the entropy values during the melting temperature calculation.
 p1_AT_len = [len(seq) for seq in AT_pairs_p1]
 p1_GC_len = [len(seq) for seq in GC_pairs_p1]
+p1_RY_len = [len(seq) for seq in RY_pairs_p1]
+p1_YY_len = [len(seq) for seq in YY_pairs_p1]
 
 p2_AT_len = [len(seq) for seq in AT_pairs_p2]
 p2_GC_len = [len(seq) for seq in GC_pairs_p2]
-
+p2_RY_len = [len(seq) for seq in RY_pairs_p2]
+p2_YY_len = [len(seq) for seq in YY_pairs_p2]
 #Determines the primers' melting temperature based on the method developed by Privalov and Crane-Robinson
 #See Privalov, P. L., & Crane-Robinson, C. (2018). https://doi.org/10.1016/j.pbiomolbio.2018.01.007
 heat_capacity = .13 #kJ/K,mol-bp
 H_A_25, H_T_25 = 25, 25 #kJ/mol-bp
-S_A_25, S_T_25 = 72, 70.5 #J/K-mol-bp
-H_C_25, H_G_25 = 18.8, 18.8
+S_A_25, S_T_25 = 72, 71.5 #J/K-mol-bp
+H_C_25, H_G_25 = 18.9, 18.9
 S_C_25, S_G_25 = 44.7, 44.7
 delta_S_trans = gas_constant * math.log(2 / oligo_c)
 
@@ -82,20 +94,28 @@ def p1_melting_calculation(primer1):
 Additional melting temperature adjustment to account for the fact that Privalov and Crane-Robinson's model accuracy can
 vary significantly depending on the length GC content of the oligo. It tends to underestimate the Tm of low GC oligos and overestimates
 the Tm of high GC oligos. The highest accuracy is at a GC% around 50. The values here were measured against the melting temperatures 
-from the 92 oligos in Owczarzy's 2004 paper. See Owczarzy, R. et. al (2004). Biochemistry. https://doi.org/10.1021/bi034621r.
+from the 92 oligos in Owczarzy's 2004 and 2008 papers as well as Crane-Robinson 2018. See Owczarzy, R. et. al (2004). Biochemistry. 
+https://doi.org/10.1021/bi034621r, Owczarzy, R. (2008). Biochemistry. https://doi.org/10.1021/bi702363u, Privalov, P. L. 
+& Crane-Robinson, C. (2018). Biophysical Journal. https://doi.org/10.1016/j.bpj.2017.11.003.
 '''
     for num in p1_AT_len:
         if num >= 2:
             if primer1_gc < 50:
-                delta_S += (.77 * (primer1_length/num)) - (math.log(primer1_gc) * math.log(primer1_length / num)) - ((50 / primer1_gc) + (math.log(primer1_length, 10)))
+                delta_S += (-1.25 * num) - (50 / primer1_gc)
             else:
-                delta_S += (.77 * (primer1_length/num)) - (math.log(primer1_gc) * math.log(primer1_length / num)) - ((50 / primer1_gc) - (math.log(primer1_length, 10)))
+                delta_S += (-1.25 * num) - (primer1_gc / 50)
     for num in p1_GC_len:
         if num > 1:
-            if primer1_gc >= 70:
+            if primer1_gc >= 65:
                 delta_S -= -20.6 + ((100 - primer1_gc) * .375) #Compensation for non-linearity at high GC%'s
             else:
-                delta_S -= (.43 * (primer1_length/num)) - (math.log(primer1_gc) * math.log(primer1_length / num)) + (50 / primer1_gc)
+                delta_S -= (.43 * (primer1_length/num)) - (math.log(primer1_gc) * math.log(primer1_length / num)) - (50 / primer1_gc)
+    for num in p1_RY_len:
+        if num > 4:
+            delta_S -= (.36 * num) - (50 / primer1_gc)
+    for num in p1_YY_len:
+        if num > 3:
+            delta_S += (.96 * num) - (50 / primer1_gc)
 
     tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2/oligo_c)))) - 298.15
 
@@ -111,15 +131,21 @@ def p2_melting_calculation(primer2):
     for num in p2_AT_len:
         if num >= 2:
             if primer2_gc < 50:
-                delta_S += (.77 * (primer2_length/num)) - (math.log(primer2_gc) * math.log(primer2_length / num)) - ((50 / primer2_gc) + (math.log(primer2_length, 10)))
+                delta_S += (-1.25 * num) - (50 / primer2_gc)
             else:
-                delta_S += (.77 * (primer2_length/num)) - (math.log(primer2_gc) * math.log(primer2_length / num)) - ((50 / primer2_gc) - (math.log(primer2_length, 10)))
+                delta_S += (-1.25 * num) - (primer2_gc / 50)
     for num in p2_GC_len:
-        if num >= 1:
-            if primer2_gc >= 70:
+        if num > 1:
+            if primer2_gc >= 65:
                 delta_S -= -20.6 + ((100 - primer2_gc) * .375)
             else:
-                delta_S -= (.43 * (primer2_length/num)) - (math.log(primer2_gc) * math.log(primer2_length / num)) + (50 / primer2_gc)
+                delta_S -= (.43 * (primer2_length/num)) - (math.log(primer2_gc) * math.log(primer2_length / num)) - (50 / primer2_gc)
+    for num in p2_RY_len:
+        if num > 4:
+            delta_S -= (.36 * num) - (50 / primer2_gc)
+    for num in p2_YY_len:
+        if num > 3:
+            delta_S += (.96 * num) - (50 / primer2_gc)
 
     tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2/oligo_c)))) - 298.15
 
@@ -211,11 +237,9 @@ def primer2_salt_correction(primer2_melting_temperature, primer2_gc, primer2_len
 
 adj_primer1_melting_temperature = primer1_salt_correction(primer1_melting_temperature, primer1_gc, primer1_length, mg, mon)
 adj_primer2_melting_temperature = primer2_salt_correction(primer2_melting_temperature, primer2_gc, primer2_length, mg, mon)
-
 ###################################################################################################################################
 #Printing the results
 ###################################################################################################################################
-
 print('The GC content of primer 1 is ' + str(round(primer1_gc, 1)) + '%.' + 
 ' The GC content of primer 2 is ' + str(round(primer2_gc, 1)) + '%.')
 print('The melting temperatures of your primers are ' + str(round(adj_primer1_melting_temperature, 1)) + 

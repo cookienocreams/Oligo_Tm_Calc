@@ -31,42 +31,32 @@ primer1_gc, primer2_gc = get_primer_gc(primer1, primer2)
 ###################################################################################################################################
 '''
 This section attempts to correct the model's accuracy discrepancy when computing the melting temperatures of oligos with 
-different base sequences but the same GC content. Those types of oligos can differ significantly, however, 
-Privalov and Crane-Robinson's model doesn't contain any way to account for those differences. I think the discrepancy 
-may be due to the presence of alternating purine and pyrimidine bases. The alternating pairs may break up water binding
-to adenine and thymine residues, thus decreasing the entropy cost associated with that water binding. In theory, the longer 
-the alternating purine and pyrimidine chain, the more stable the helix is. Conversely, the longer the strings of repeating
-pyrimidine bases, the less stable the helix.
+different base sequences but the same GC content. Those types of oligos can differ significantly in their melting temperatures, however, 
+Privalov and Crane-Robinson's model doesn't contain any way to account for those differences. I think the discrepancy may be due 
+to the presence of alternating water binding bases, i.e. A, T, and C, and non water binding bases, G and CG/GC pairs. The alternating 
+pairs may break up water binding to adenine and pyrimidine residues, thus decreasing the entropy cost associated with that water binding. 
+In theory, the longer the alternating CG/GC chain, the more stable the helix is. Conversely, the longer the strings of repeating 
+adenine and pyrimidine bases, the less stable the helix.
 '''
-AT_pairs_p1 = re.findall('(?:A|T){1}(?:A|T){1,}', primer1) #Generates a list of repeating adenine and thymine sequences
-AT_pairs_p2 = re.findall('(?:A|T){1}(?:A|T){1,}', primer2) #in each primer. Only includes sequences with two or more repeats.
-
-GC_pairs_p1 = re.findall('(?:G|C){1}(?:G|C){1,}', primer1) #Generates a list of repeating guanine and thymine cytosine
+GC_pairs_p1 = re.findall('(?:G|C){1}(?:G|C){1,}', primer1) #Generates a list of repeating guanine and cytosine sequences
 GC_pairs_p2 = re.findall('(?:G|C){1}(?:G|C){1,}', primer2) #in each primer. Only includes sequences with two or more repeats.
 
-RY_primer1_str = ''.join(['R' if base in purine else 'Y' for base in primer1])#Converts each primer into the nucleotide codes
-RY_primer2_str = ''.join(['R' if base in purine else 'Y' for base in primer2])#R and Y for purine and pyrimidine bases
+AY_primer1_str = ''.join(['Y' if base in pyrimidine else base for base in primer1])#Converts primer bases into the pyrimidine nucleotide
+AY_primer2_str = ''.join(['Y' if base in pyrimidine else base for base in primer2])#code Y if applicable
 
-RY_pairs_p1 = re.findall('(?:RY){2,}', RY_primer1_str) #Generates a list of repeating purine and pyrimidine sequences
-RY_pairs_p2 = re.findall('(?:RY){2,}', RY_primer2_str) #in each primer. Only includes sequences with two or more repeats.
-
-YY_pairs_p1 = re.findall('(?:YY){2,}', RY_primer1_str) #Generates a list of repeating pyrimidine sequences
-YY_pairs_p2 = re.findall('(?:YY){2,}', RY_primer2_str) ##in each primer. Only includes sequences with two or more repeats.
+AY_pairs_p1 = re.findall('(?:A|Y){1}(?:Y|A){1,}', AY_primer1_str) #Generates a list of repeating adenine and pyrimidine sequences
+AY_pairs_p2 = re.findall('(?:A|Y){1}(?:Y|A){1,}', AY_primer2_str) ##in each primer. Only includes sequences with two or more repeats.
 '''
 The above lists are needed so that their respective influences on helix stability can be measured and quantified. The functions 
 below attempt to apply those differences to appropriately modify the melting temperature.
 '''
 #These variables take those captured sequences from the lists of pairs above and convert them into lengths. The lengths will then
 #be used to alter the entropy values during the melting temperature calculation.
-p1_AT_len = [len(seq) for seq in AT_pairs_p1]
 p1_GC_len = [len(seq) for seq in GC_pairs_p1]
-p1_RY_len = [len(seq) for seq in RY_pairs_p1]
-p1_YY_len = [len(seq) for seq in YY_pairs_p1]
+p1_AY_len = [len(seq) for seq in AY_pairs_p1]
 
-p2_AT_len = [len(seq) for seq in AT_pairs_p2]
 p2_GC_len = [len(seq) for seq in GC_pairs_p2]
-p2_RY_len = [len(seq) for seq in RY_pairs_p2]
-p2_YY_len = [len(seq) for seq in YY_pairs_p2]
+p2_AY_len = [len(seq) for seq in AY_pairs_p2]
 #Here the melting temperature of the primers is determined based on the method developed by Privalov and Crane-Robinson
 #See Privalov, P. L., & Crane-Robinson, C. (2018). https://doi.org/10.1016/j.pbiomolbio.2018.01.007
 heat_capacity = .13 #kJ/K,mol-bp
@@ -91,21 +81,15 @@ from the 92 oligos in Owczarzy's 2004 paper. See Owczarzy, R. et. al (2004). Bio
     delta_S -= ((-.0013 * (primer2_length) + .0086) * (primer2_gc) ** 2 + (.0601 * (primer2_length) - .6562) * (primer2_gc) + (-.0481 * (primer2_length) ** 2 + 1.3841 * (primer2_length) + 10.826))
     '''
 Additional corrections for destabilizing synergistic effects of water chaining and the stabilizing effects of disrupting that chaining. 
-While RY/YY combos are imperfect, as an RY pair may be ATA, which could form water chains and vice versa for YY pairs, adding them both 
-should roughly cancel out over/underestimations of their stabilization effects.
+The AY pairs capture most of the base combinations that might form water chaining while the GC pairs capture those that might disrupt
+that chaining.
 '''    
-    for num in p1_AT_len:
+    for num in p1_AY_len:
         if num >= 2:
-            delta_S += (.45 * num)
+            delta_S += (.26 * num)
     for num in p1_GC_len:
         if num > 2:
-            delta_S -= (1.85 * num)
-    for num in p1_RY_len:
-        if num > 3:
-            delta_S -= (.45 * num) * (math.lgamma(primer1_gc) / 100)
-    for num in p1_YY_len:
-        if num > 3:
-            delta_S += (.57 * num)
+            delta_S -= (.95 * num)
 
     tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2 / oligo_c)))) - 298.15
     return tm
@@ -119,18 +103,12 @@ def p2_melting_calculation(primer2):
     
     delta_S -= ((-.0013 * (primer2_length) + .0086) * (primer2_gc) ** 2 + (.0601 * (primer2_length) - .6562) * (primer2_gc) + (-.0481 * (primer2_length) ** 2 + 1.3841 * (primer2_length) + 10.826))
 
-    for num in p2_AT_len:
+    for num in p2_AY_len:
         if num >= 2:
-            delta_S += (.45 * num)
+            delta_S += (.26 * num)
     for num in p2_GC_len:
         if num > 2:
-            delta_S -= (1.85 * num)
-    for num in p2_RY_len:
-        if num > 3:
-            delta_S -= (.45 * num) * (math.lgamma(primer2_gc) / 100)
-    for num in p2_YY_len:
-        if num > 3:
-            delta_S += (.57 * num)
+            delta_S -= (.95 * num)
 
     tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2 / oligo_c)))) - 298.15
     return tm

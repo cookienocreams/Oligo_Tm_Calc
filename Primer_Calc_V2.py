@@ -31,37 +31,42 @@ primer1_gc, primer2_gc = get_primer_gc(primer1, primer2)
 ###################################################################################################################################
 '''
 This section attempts to correct the model's accuracy discrepancy when computing the melting temperatures of oligos with 
-different base sequences but the same GC content. Those types of oligos can differ significantly in their melting temperatures, however, 
-Privalov and Crane-Robinson's model doesn't contain any way to account for those differences. I think the discrepancy may be due 
-to the presence of alternating water binding bases, i.e. A, T, and C, and non water binding bases, G and CG/GC pairs. The alternating 
-pairs may break up water binding to adenine and pyrimidine residues, thus decreasing the entropy cost associated with that water binding. 
-In theory, the longer the alternating CG/GC chain, the more stable the helix is. Conversely, the longer the strings of repeating 
-adenine and pyrimidine bases, the less stable the helix.
+different base sequences but the same GC content. Those types of oligos can differ significantly, however, Privalov and 
+Crane-Robinson's model doesn't contain any way to account for those differences. I think the discrepancy may be due to intrinsic 
+DNA bending, ion binding, and solvent effects. Site specific monovalent and divalent ion binding may break up water binding along 
+the minor groove, thus decreasing the entropy cost associated with that water binding. In theory, the longer the alternating purine 
+and pyrimidine chain, the more stable the helix is. Conversely, the longer the strings of repeating pyrimidine bases, the less stable 
+the helix.
 '''
 GC_pairs_p1 = re.findall('(?:G|C){1}(?:G|C){1,}', primer1) #Generates a list of repeating guanine and cytosine sequences
 GC_pairs_p2 = re.findall('(?:G|C){1}(?:G|C){1,}', primer2) #in each primer. Only includes sequences with two or more repeats.
 
-AY_primer1_str = ''.join(['Y' if base in pyrimidine else base for base in primer1])#Converts primer bases into the pyrimidine nucleotide
-AY_primer2_str = ''.join(['Y' if base in pyrimidine else base for base in primer2])#code Y if applicable
+RY_primer1_str = ''.join(['R' if base in purine else 'Y' for base in primer1]) #Converts each primer into the nucleotide codes
+RY_primer2_str = ''.join(['R' if base in purine else 'Y' for base in primer2]) #R and Y for purine and pyrimidine bases
 
-AY_pairs_p1 = re.findall('(?:A|Y){1}(?:Y|A){1,}', AY_primer1_str) #Generates a list of repeating adenine and pyrimidine sequences
-AY_pairs_p2 = re.findall('(?:A|Y){1}(?:Y|A){1,}', AY_primer2_str) ##in each primer. Only includes sequences with two or more repeats.
+RY_pairs_p1 = re.findall('(?:RY){1,}', RY_primer1_str) #Generates a list of repeating purine and pyrimidine sequences
+RY_pairs_p2 = re.findall('(?:RY){1,}', RY_primer2_str) #in each primer. Only includes sequences with two or more repeats.
+
+YY_pairs_p1 = re.findall('(?:Y){2,}', RY_primer1_str) + re.findall('(?:R){2,}', RY_primer1_str) #Generates a list of repeating purine
+YY_pairs_p2 = re.findall('(?:Y){2,}', RY_primer2_str) + re.findall('(?:R){2,}', RY_primer2_str) #sequences in each primer.
 '''
 The above lists are needed so that their respective influences on helix stability can be measured and quantified. The functions 
-below attempt to apply those differences to appropriately modify the melting temperature.
+below attempts to apply those differences to appropriately modify the melting temperature.
 '''
 #These variables take those captured sequences from the lists of pairs above and convert them into lengths. The lengths will then
 #be used to alter the entropy values during the melting temperature calculation.
 p1_GC_len = [len(seq) for seq in GC_pairs_p1]
-p1_AY_len = [len(seq) for seq in AY_pairs_p1]
+p1_RY_len = [len(seq) for seq in RY_pairs_p1]
+p1_YY_len = [len(seq) for seq in YY_pairs_p1]
 
 p2_GC_len = [len(seq) for seq in GC_pairs_p2]
-p2_AY_len = [len(seq) for seq in AY_pairs_p2]
+p2_RY_len = [len(seq) for seq in RY_pairs_p2]
+p2_YY_len = [len(seq) for seq in YY_pairs_p2]
 #Here the melting temperature of the primers is determined based on the method developed by Privalov and Crane-Robinson
 #See Privalov, P. L., & Crane-Robinson, C. (2018). https://doi.org/10.1016/j.pbiomolbio.2018.01.007
 heat_capacity = .13 #kJ/K,mol-bp
 H_A_25, H_T_25 = 25, 25 #kJ/mol-bp
-S_A_25, S_T_25 = 72, 72 #J/K-mol-bp
+S_A_25, S_T_25 = 71.5, 72 #J/K-mol-bp
 H_CG_25, S_CG_25 = 18.8, 44.7
 delta_S_trans = gas_constant * math.log(2 / oligo_c)
 
@@ -78,18 +83,20 @@ The equation below functions as an approximate "best fit" correction for the dis
 adjust the constants of a polynomial equation based on chnages in oligo length. The values here were derived from the melting temperatures
 from the 92 oligos in Owczarzy's 2004 paper. See Owczarzy, R. et. al (2004). Biochemistry. https://doi.org/10.1021/bi034621r.
 '''   
-    delta_S -= ((-.0013 * (primer2_length) + .0086) * (primer2_gc) ** 2 + (.0601 * (primer2_length) - .6562) * (primer2_gc) + (-.0481 * (primer2_length) ** 2 + 1.3841 * (primer2_length) + 10.826))
+    delta_S -= ((-.0013 * (primer1_length) + .0086) * (primer1_gc) ** 2 + (.0601 * (primer1_length) - .6562) * (primer1_gc) + \
+        (-.0481 * (primer1_length) ** 2 + 1.3841 * (primer1_length) + 10.826))
     '''
-Additional corrections for destabilizing synergistic effects of water chaining and the stabilizing effects of disrupting that chaining. 
-The AY pairs capture most of the base combinations that might form water chaining while the GC pairs capture those that might disrupt
-that chaining.
+Additional corrections for the combination of site specific DNA bending, ion binding to specific sequences, plus other assorted solvent
+effects which are too complex to fully account for. The following try to account for divalent ion binding to G bases which may displace
+part of the water spine therefore reducing entropy. The other YY and RY corrections try to account for the hightened twist-roll coupling
+that occurs most often in pyrimidine-purine dimers and least often in purine-pyrimidine steps.
 '''    
-    for num in p1_AY_len:
-        if num >= 2:
-            delta_S += (.26 * num)
     for num in p1_GC_len:
-        if num > 2:
-            delta_S -= (.95 * num)
+        delta_S -= (.88 * num)
+    for num in p1_RY_len:
+        delta_S -= (.55 * num)
+    for num in p1_YY_len:
+        delta_S += (.85 * num)
 
     tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2 / oligo_c)))) - 298.15
     return tm
@@ -103,12 +110,12 @@ def p2_melting_calculation(primer2):
     
     delta_S -= ((-.0013 * (primer2_length) + .0086) * (primer2_gc) ** 2 + (.0601 * (primer2_length) - .6562) * (primer2_gc) + (-.0481 * (primer2_length) ** 2 + 1.3841 * (primer2_length) + 10.826))
 
-    for num in p2_AY_len:
-        if num >= 2:
-            delta_S += (.26 * num)
     for num in p2_GC_len:
-        if num > 2:
-            delta_S -= (.95 * num)
+        delta_S -= (.88 * num)
+    for num in p2_RY_len:
+        delta_S -= (.55 * num)
+    for num in p2_YY_len:
+        delta_S += (.85 * num)
 
     tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2 / oligo_c)))) - 298.15
     return tm
@@ -129,7 +136,7 @@ mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 
 #Equations from Owczarzy 2008 that adjusts melting temperatures according to monovalent ion, magnesium, and dNTP concentrations
 #See Owczarzy, R., et al. (2008). Biochemistry, https://doi.org/10.1021/bi702363u
 def primer1_salt_correction(primer1_melting_temperature, primer1_gc, primer1_length, mg, mon):
-    a, b, c, d, e, f, g = 3.92e-5, -10.11e-6, 7.76e-5, 1.42e-5, -3.02e-4, 3.30e-4, 8.31e-5 #Slightly modified constants
+    a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.26e-5, 1.42e-5, -4.02e-4, 5.10e-4, 8.31e-5 #Slightly modified constants
     '''
 The condition calculating the melting temperature if there is no monovalent salt present must be put first, before calculating R.
 This is because the R equation requires dividing by the monovalent ion concentration. And of course, you can't divide by zero.
@@ -142,14 +149,14 @@ throws an error.
         return round((1 / salt2) - 273.15, 1)
 
     R = math.sqrt(mg) / mon #Ratio to determine whether monovalent or divalent ions are dominant in their effects on melting temperature
-    
+
     if R < 0.22:
         salt1 = (1 / (primer1_melting_temperature + 273.15)) + ((4.29e-5 * (primer1_gc / 100)) - 3.95e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
         return round((1 / salt1) - 273.15, 1)
     elif R < 6.0:
-        a = 3.92e-5 * (0.843 - (0.352 * math.sqrt(mon) * math.log(mon)))
-        d = 1.42e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
-        g = 8.31e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
+        a = 4.42e-5 * (0.843 - (0.352 * math.sqrt(mon) * math.log(mon)))
+        d = 1.02e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
+        g = 8.71e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
 
         salt2 = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         return round((1 / salt2) - 273.15, 1)
@@ -158,7 +165,7 @@ throws an error.
     return round((1 / salt2) - 273.15, 1)
 
 def primer2_salt_correction(primer2_melting_temperature, primer2_gc, primer2_length, mg, mon):
-    a, b, c, d, e, f, g = 3.92e-5, -10.11e-6, 7.76e-5, 1.42e-5, -3.02e-4, 3.30e-4, 8.31e-5
+    a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.26e-5, 1.42e-5, -4.02e-4, 5.10e-4, 8.31e-5
     if mon == 0:
         salt2 = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         return round((1 / salt2) - 273.15, 1)
@@ -169,9 +176,9 @@ def primer2_salt_correction(primer2_melting_temperature, primer2_gc, primer2_len
         salt1 = (1 / (primer2_melting_temperature + 273.15)) + ((4.29e-5 * (primer2_gc / 100)) - 3.95e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
         return round((1 / salt1) - 273.15, 1)
     elif R < 6.0:
-        a = 3.92e-5 * (0.843 - (0.352 * math.sqrt(mon) * math.log(mon)))
-        d = 1.42e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
-        g = 8.31e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3))
+        a = 4.42e-5 * (0.843 - (0.352 * math.sqrt(mon) * math.log(mon)))
+        d = 1.02e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
+        g = 8.71e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
 
         salt2 = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         return round((1 / salt2) - 273.15, 1)

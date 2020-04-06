@@ -18,8 +18,6 @@ oligo_c = (oligo1_conc) * 1e-6 #Adjust concentration to mol/L
 purine = ['A','G'] #Lists used to convert primer sequence into R/Y purine/pyrimidine nucleotide codes
 pyrimidine = ['C','T']
 primer1_length, primer2_length = len(primer1), len(primer2)
-p1_terminal_base, p1_initial_base = primer1[-1], primer1[0]
-p2_terminal_base, p2_initial_base = primer2[-1], primer2[0]
 
 #Calculation of each primer's GC content
 def get_primer_gc(primer1, primer2):
@@ -33,45 +31,56 @@ primer1_gc, primer2_gc = get_primer_gc(primer1, primer2)
 ###################################################################################################################################
 '''
 For relatively short DNA sequences, such as PCR primers, the initial melting of the helix is influenced by the bases at the ends.
-DNA sequences around this length follow appoximately two-state melting. Therefore, the initial 'unzipping' plays a larger factor
-in helix melting. Regardless of the underlying mechanism, G or C bases should require more energy to begin unzipping.
+DNA sequences around this length are more affected by the persistance length of DNA. Although it is technically ~50 nm, it varies due
+to factors such as salt concentration, pH, and temperature. DNA sequences as short as 80-90 bp can circularize. It is therefore likely
+that shorter sequences contain flexibiity that can affect melting temperature. Lengths less than ~ 15 bp can be modeled as effectively 
+steel rods, since at that length electrostatic repulsion may end DNA flexibility. Therefore, the initial 'unzipping' plays a larger 
+factor in helix melting. With flexibility minimized, base stacking and solvent effects likely reigh supreme over those short oligos.
+Those effects exert less influence as oligo length increases. Purine-pyrimidine base steps should require more energy to begin unzipping.
 '''
-def p1_end_comp(p1_initial_base, p1_terminal_base):
-    AT_h, AT_s, GC_h, GC_s = 2.53, 5.7, .49, -.7
+RY_primer1_str = ''.join(['R' if base in purine else 'Y' for base in primer1]) #Converts each primer into the nucleotide codes
+RY_primer2_str = ''.join(['R' if base in purine else 'Y' for base in primer2]) #R and Y for purine and pyrimidine bases
+
+#Captures the first two and last two base pairs in each primer so that the energies associated with opening the helix can be calculated
+p1_initial_bases, p1_terminal_bases = RY_primer1_str[0:2], RY_primer1_str[-2:primer1_length]
+p2_initial_bases, p2_terminal_bases = RY_primer2_str[0:2], RY_primer2_str[-2:primer2_length]
+
+def p1_end_comp(p1_initial_bases, p1_terminal_bases):
+    YY_h, YY_s, RY_h, RY_s = 1.23, 9.7, .79, -.2
     dh_comp, ds_comp = 0, 0
-    if p1_initial_base in ['A', 'T']:
-        dh_comp += AT_h
-        ds_comp += AT_s
-    if p1_initial_base in ['C', 'G']:
-        dh_comp += GC_h
-        ds_comp += GC_s
-    if p1_terminal_base in ['A', 'T']:
-        dh_comp += AT_h
-        ds_comp += AT_s
-    if p1_terminal_base in ['C', 'G']:
-        dh_comp += GC_h
-        ds_comp += GC_s
+    if p1_initial_bases in ['YY', 'RR']:
+        dh_comp += YY_h
+        ds_comp += YY_s
+    if p1_initial_bases in ['RY', 'YR']:
+        dh_comp += RY_h
+        ds_comp += RY_s
+    if p1_terminal_bases in ['YY', 'RR']:
+        dh_comp += YY_h
+        ds_comp += YY_s
+    if p1_terminal_bases in ['RY', 'YR']:
+        dh_comp += RY_h
+        ds_comp += RY_s
     return dh_comp, ds_comp
 
-def p2_end_comp(p2_initial_base,p2_terminal_base):
-    AT_h, AT_s, GC_h, GC_s = 2.53, 5.7, .49, -.7
+def p2_end_comp(p2_initial_bases,p2_terminal_bases):
+    YY_h, YY_s, RY_h, RY_s = 1.23, 9.7, .79, -.2
     dh_comp, ds_comp = 0, 0
-    if p2_initial_base in ['A', 'T']:
-        dh_comp += AT_h
-        ds_comp += AT_s
-    if p2_initial_base in ['C', 'G']:
-        dh_comp += GC_h
-        ds_comp += GC_s
-    if p2_terminal_base in ['A', 'T']:
-        dh_comp += AT_h
-        ds_comp += AT_s
-    if p2_terminal_base in ['C', 'G']:
-        dh_comp += GC_h
-        ds_comp += GC_s
+    if p2_initial_bases in ['YY', 'RR']:
+        dh_comp += YY_h
+        ds_comp += YY_s
+    if p2_initial_bases in ['RY', 'YR']:
+        dh_comp += RY_h
+        ds_comp += RY_s
+    if p2_terminal_bases in ['YY', 'RR']:
+        dh_comp += YY_h
+        ds_comp += YY_s
+    if p2_terminal_bases in ['RY', 'YR']:
+        dh_comp += RY_h
+        ds_comp += RY_s
     return dh_comp, ds_comp
 
-p1_term_h, p1_term_s = p1_end_comp(p1_initial_base,p1_terminal_base)
-p2_term_h, p2_term_s = p2_end_comp(p2_initial_base,p2_terminal_base)
+p1_term_h, p1_term_s = p1_end_comp(p1_initial_bases,p1_terminal_bases)
+p2_term_h, p2_term_s = p2_end_comp(p2_initial_bases,p2_terminal_bases)
 ###################################################################################################################################
 #Melting Temperature Calculation
 ###################################################################################################################################
@@ -84,17 +93,27 @@ the minor groove, thus decreasing the entropy cost associated with that water bi
 and pyrimidine chain, the more stable the helix is. Conversely, the longer the strings of repeating pyrimidine bases, the less stable 
 the helix.
 '''
-GC_pairs_p1 = re.findall('(?:G|C){1}(?:G|C){1,}', primer1) #Generates a list of repeating guanine and cytosine sequences
-GC_pairs_p2 = re.findall('(?:G|C){1}(?:G|C){1,}', primer2) #in each primer. Only includes sequences with two or more repeats.
+#Splits each primer into three sections, the first quarter, middle half, and last quarter. For the purpose of the analysis, only the
+#middle section is relevant. The sequence specific interactions appart from end effects may be most consequential in the center region.
+p1_1st_quater = primer1[0:int(primer1_length / 4 if primer1_length % 2 == 0 else (primer1_length + 1)/4)]
+p1_middle = primer1[len(p1_1st_quater):primer1_length - len(p1_1st_quater)]
+p1_last_quater = primer1[primer1_length - len(p1_1st_quater):len(primer1)]
 
-RY_primer1_str = ''.join(['R' if base in purine else 'Y' for base in primer1]) #Converts each primer into the nucleotide codes
-RY_primer2_str = ''.join(['R' if base in purine else 'Y' for base in primer2]) #R and Y for purine and pyrimidine bases
+p2_1st_quater = primer2[0:int(primer2_length / 4 if primer2_length % 2 == 0 else (primer2_length + 1)/4)]
+p2_middle = primer2[len(p2_1st_quater):primer2_length - len(p2_1st_quater)]
+p2_last_quater = primer2[primer2_length - len(p2_1st_quater):len(primer2)]
 
-RY_pairs_p1 = re.findall('(?:RY){1,}', RY_primer1_str) #Generates a list of repeating purine and pyrimidine sequences
-RY_pairs_p2 = re.findall('(?:RY){1,}', RY_primer2_str) #in each primer. Only includes sequences with two or more repeats.
+RY_primer1_middle = ''.join(['R' if base in purine else 'Y' for base in p1_middle]) #Converts each primer middle into the nucleotide
+RY_primer2_middle = ''.join(['R' if base in purine else 'Y' for base in p2_middle]) #codes R and Y for purine and pyrimidine bases
 
-YY_pairs_p1 = re.findall('(?:Y){2,}', RY_primer1_str) + re.findall('(?:R){2,}', RY_primer1_str) #Generates a list of repeating purine and
-YY_pairs_p2 = re.findall('(?:Y){2,}', RY_primer2_str) + re.findall('(?:R){2,}', RY_primer2_str) #pyrimidine sequences in each primer.
+GC_pairs_p1 = re.findall('(?:G|C){1}(?:G|C){1,}', p1_middle) #Generates a list of repeating guanine and cytosine sequences
+GC_pairs_p2 = re.findall('(?:G|C){1}(?:G|C){1,}', p2_middle) #in each primer. Only includes sequences with two or more repeats.
+
+RY_pairs_p1 = re.findall('(?:RY){1,}', RY_primer1_middle) #Generates a list of repeating purine and pyrimidine sequences
+RY_pairs_p2 = re.findall('(?:RY){1,}', RY_primer2_middle) #in each primer. Only includes sequences with two or more repeats.
+
+YY_pairs_p1 = re.findall('(?:Y){2,}', RY_primer1_middle) + re.findall('(?:R){2,}', RY_primer1_middle) #Generates a list of repeating purine and
+YY_pairs_p2 = re.findall('(?:Y){2,}', RY_primer2_middle) + re.findall('(?:R){2,}', RY_primer2_middle) #pyrimidine sequences in each primer.
 '''
 The above lists are needed so that their respective influences on helix stability can be measured and quantified. The functions 
 below attempts to apply those differences to appropriately modify the melting temperature.
@@ -121,8 +140,8 @@ def p1_melting_calculation(primer1):
     n_CG = primer1.count('C') + primer1.count('G') #Needed to calculate total enthalpy and entropy
     
     #Total enthalpy and entropy value calculations for determining the melting temperature. Takes the heat capacity into account.
-    delta_H = ((H_A_25 + (heat_capacity * (314.5 - 298.15))) * n_A) + ((H_T_25 + (heat_capacity * (314.5 - 298.15))) * n_T) + ((H_CG_25 + (heat_capacity * (314.5 - 298.15))) * n_CG) + p1_term_h
-    delta_S = ((S_A_25 + (heat_capacity * math.log(314.5 / 298.15))) * n_A) + ((S_T_25 + (heat_capacity * math.log(314.5 / 298.15))) * n_T) + ((S_CG_25 + (heat_capacity * math.log((314.5) / 298.15))) * n_CG) + p1_term_s
+    delta_H = ((H_A_25 + (heat_capacity * (315 - 298.15))) * n_A) + ((H_T_25 + (heat_capacity * (315 - 298.15))) * n_T) + ((H_CG_25 + (heat_capacity * (315 - 298.15))) * n_CG) + p1_term_h
+    delta_S = ((S_A_25 + (heat_capacity * math.log(315 / 298.15))) * n_A) + ((S_T_25 + (heat_capacity * math.log(315 / 298.15))) * n_T) + ((S_CG_25 + (heat_capacity * math.log((315) / 298.15))) * n_CG) + p1_term_s 
     '''
 The equation below functions as an approximate "best fit" correction for the discrepancy in the model's accuracy at high and low %GC. It 
 adjust the constants of a polynomial equation based on chnages in oligo length. The values here were derived from the melting temperatures
@@ -135,7 +154,7 @@ Additional corrections for the combination of site specific DNA bending, ion bin
 effects which are too complex to fully account for. The following try to account for divalent ion binding to G bases which may displace
 part of the water spine therefore reducing entropy. The other YY and RY corrections try to account for the hightened twist-roll coupling
 that occurs most often in pyrimidine-purine dimers and least often in purine-pyrimidine steps.
-'''    
+'''  
     if primer1_length < 25: #Corrections are most helpful for oligos shorter than around 25 bp 
         for num in p1_GC_len:
             delta_S -= (.70 * num)
@@ -151,8 +170,8 @@ def p2_melting_calculation(primer2):
 
     n_A, n_T, n_CG = primer2.count('A'), primer2.count('T'), primer2.count('C') + primer2.count('G')
 
-    delta_H = ((H_A_25 + (heat_capacity * (314.5 - 298.15))) * n_A) + ((H_T_25 + (heat_capacity * (314.5 - 298.15))) * n_T) + ((H_CG_25 + (heat_capacity * (314.5 - 298.15))) * n_CG) + p2_term_h
-    delta_S = ((S_A_25 + (heat_capacity * math.log(314.5 / 298.15))) * n_A) + ((S_T_25 + (heat_capacity * math.log(314.5 / 298.15))) * n_T) + ((S_CG_25 + (heat_capacity * math.log((314.5) / 298.15))) * n_CG) + p2_term_s
+    delta_H = ((H_A_25 + (heat_capacity * (315 - 298.15))) * n_A) + ((H_T_25 + (heat_capacity * (315 - 298.15))) * n_T) + ((H_CG_25 + (heat_capacity * (315 - 298.15))) * n_CG) + p2_term_h
+    delta_S = ((S_A_25 + (heat_capacity * math.log(315 / 298.15))) * n_A) + ((S_T_25 + (heat_capacity * math.log(315 / 298.15))) * n_T) + ((S_CG_25 + (heat_capacity * math.log((315) / 298.15))) * n_CG) + p2_term_s
     
     delta_S -= ((-.001292 * (primer2_length) + .00988) * (primer2_gc) ** 2 + (.0572 * (primer2_length) - .7342) * (primer2_gc) + \
         (-.0366 * (primer2_length) ** 2 + .839 * (primer2_length) + 23.863))

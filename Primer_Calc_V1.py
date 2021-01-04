@@ -67,27 +67,18 @@ YY_h,RY_h = 0.959547884222969 - YY_length_adjust_eq, 0.849386567650066 - YR_leng
 ###################################################################################################################################
 #Calculation of delta H and delta S total for primer 1
 def p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list):
-    count, total_dh, total_ds = 0, 0, 0 #Needed to track values of each NN pair
+    count, p1_total_dh, p1_total_ds, p2_total_dh, p2_total_ds = 0, 0, 0, 0, 0 #Needed to track values of each NN pair
     NN_pair = NN_pairs_list[count] #Indexed to calculate the values of each set of NN in the nearest-neighbor list
     for NN_pair in NN_pairs_list:
-        num = sum((1.0 for NN in duo_primer1 if NN in NN_pair)) #Calculates the number of occurances of each NN in the primer sequence
-        total_dh += num * Delta_H[count] #Multiplies the number of occurances by the associated delta h/s value
-        total_ds += num * Delta_S[count]
+        p1_num = sum((1.0 for NN in duo_primer1 if NN in NN_pair)) #Calculates the number of occurances of each NN in the primer sequence
+        p2_num = sum((1.0 for NN in duo_primer2 if NN in NN_pair))
+        p1_total_dh += p1_num * Delta_H[count] #Multiplies the number of occurances by the associated delta h/s value
+        p1_total_ds += p1_num * Delta_S[count]
+        p2_total_dh += p2_num * Delta_H[count]
+        p2_total_ds += p2_num * Delta_S[count]
         count += 1 #Adds one to the count to keep track of which NNs have been calculated already
-    return total_dh, total_ds
-p1_h_calc, p1_s_calc = p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list)
-
-#Calculation of delta H adn delta S total for primer 2
-def p2_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list):
-    count, total_dh, total_ds = 0, 0, 0
-    NN_pair = NN_pairs_list[count]
-    for NN_pair in NN_pairs_list:
-        num = sum((1.0 for NN in duo_primer2 if NN in NN_pair))
-        total_dh += num * Delta_H[count]
-        total_ds += num * Delta_S[count]
-        count += 1
-    return total_dh, total_ds
-p2_h_calc, p2_s_calc = p2_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list)
+    return p1_total_dh, p1_total_ds, p2_total_dh, p2_total_ds
+p1_h_calc, p1_s_calc, p2_h_calc, p2_s_calc = p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list)
 
 #Adds in the enthalpic compensation for the ends of each primer
 if p1_initial_bases in ['YY','RR']:

@@ -1,17 +1,7 @@
 import re, math
 
 #Lists with all non-overlapping NN pair possiblities
-AA = ['AA', 'TT']
-AC = ['AC', 'TG']
-AG = ['AG', 'TC']
-AT = ['AT']
-CA = ['CA', 'GT']
-CC = ['CC', 'GG']
-CG = ['CG']
-GA = ['GA', 'CT']
-GC = ['GC']
-TA = ['TA']
-
+NN_pairs_list = [['AA', 'TT'], ['AC', 'TG'], ['AG', 'TC'], ['AT'], ['CA', 'GT'], ['CC', 'GG'], ['CG'], ['GA', 'CT'], ['GC'], ['TA']]
 gas_constant = 1.98720425864083 #cal⋅K−1⋅mol−1
 purine = ['A','G'] #Lists used to convert primer sequence into R/Y purine/pyrimidine nucleotide codes
 pyrimidine = ['C','T']
@@ -87,6 +77,8 @@ GC_delta_h = -9.457805766372232
 TA_delta_s = -19.12903239340641
 TA_delta_h = -6.6574837353237415
 
+Delta_S = [AA_delta_s,AC_delta_s,AG_delta_s,AT_delta_s,CA_delta_s,CC_delta_s,CG_delta_s,GA_delta_s,GC_delta_s,TA_delta_s]
+Delta_H = [AA_delta_h,AC_delta_h,AG_delta_h,AT_delta_h,CA_delta_h,CC_delta_h,CG_delta_h,GA_delta_h,GC_delta_h,TA_delta_h]
 #End Compensation parameters
 YY_constant_one = (-.0235 * primer1_length) + .1273
 YY_constant_two = (.1639 * primer1_length) - .895
@@ -99,92 +91,62 @@ YY_h,RY_h = 0.959547884222969 - YY_length_adjust_eq, 0.849386567650066 - YR_leng
 #Determination of NN thermodynamic parameters for each primer
 ###################################################################################################################################
 
-#Calculation of delta H total for each NN pair in primer 1
-AA_h_p1 = AA_delta_h * sum(1.0 for NN in duo_primer1 if NN in AA)
-AC_h_p1 = AC_delta_h * sum(1.0 for NN in duo_primer1 if NN in AC)
-AG_h_p1 = AG_delta_h * sum(1.0 for NN in duo_primer1 if NN in AG)
-AT_h_p1 = AT_delta_h * sum(1.0 for NN in duo_primer1 if NN in AT)
-CA_h_p1 = CA_delta_h * sum(1.0 for NN in duo_primer1 if NN in CA)
-CC_h_p1 = CC_delta_h * sum(1.0 for NN in duo_primer1 if NN in CC)
-CG_h_p1 = CG_delta_h * sum(1.0 for NN in duo_primer1 if NN in CG)
-GA_h_p1 = GA_delta_h * sum(1.0 for NN in duo_primer1 if NN in GA)
-GC_h_p1 = GC_delta_h * sum(1.0 for NN in duo_primer1 if NN in GC)
-TA_h_p1 = TA_delta_h * sum(1.0 for NN in duo_primer1 if NN in TA)
+#Calculation of delta H and delta S total for primer 1
+def p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list):
+    count, total_dh, total_ds = 0, 0, 0 #Needed to track values of each NN pair
+    NN_pair = NN_pairs_list[count] #Indexed to calculate the values of each set of NN in the nearest-neighbor list
+    for NN_pair in NN_pairs_list:
+        num = sum((1.0 for NN in duo_primer1 if NN in NN_pair)) #Calculates the number of occurances of each NN in the primer sequence
+        total_dh += num * Delta_H[count] #Multiplies the number of occurances by the associated delta h/s value
+        total_ds += num * Delta_S[count]
+        count += 1 #Adds one to the count to keep track of which NNs have been calculated already
+    return total_dh, total_ds
+p1_h_calc, p1_s_calc = p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list)
 
-#Calculation of delta S total for each NN pair in primer 1
-AA_s_p1 = AA_delta_s * sum(1.0 for NN in duo_primer1 if NN in AA)
-AC_s_p1 = AC_delta_s * sum(1.0 for NN in duo_primer1 if NN in AC)
-AG_s_p1 = AG_delta_s * sum(1.0 for NN in duo_primer1 if NN in AG)
-AT_s_p1 = AT_delta_s * sum(1.0 for NN in duo_primer1 if NN in AT)
-CA_s_p1 = CA_delta_s * sum(1.0 for NN in duo_primer1 if NN in CA)
-CC_s_p1 = CC_delta_s * sum(1.0 for NN in duo_primer1 if NN in CC)
-CG_s_p1 = CG_delta_s * sum(1.0 for NN in duo_primer1 if NN in CG)
-GA_s_p1 = GA_delta_s * sum(1.0 for NN in duo_primer1 if NN in GA)
-GC_s_p1 = GC_delta_s * sum(1.0 for NN in duo_primer1 if NN in GC)
-TA_s_p1 = TA_delta_s * sum(1.0 for NN in duo_primer1 if NN in TA)
-
-#Calculation of delta H total for each NN pair in primer 2
-AA_h_p2 = AA_delta_h * sum(1.0 for NN in duo_primer2 if NN in AA)
-AC_h_p2 = AC_delta_h * sum(1.0 for NN in duo_primer2 if NN in AC)
-AG_h_p2 = AG_delta_h * sum(1.0 for NN in duo_primer2 if NN in AG)
-AT_h_p2 = AT_delta_h * sum(1.0 for NN in duo_primer2 if NN in AT)
-CA_h_p2 = CA_delta_h * sum(1.0 for NN in duo_primer2 if NN in CA)
-CC_h_p2 = CC_delta_h * sum(1.0 for NN in duo_primer2 if NN in CC)
-CG_h_p2 = CG_delta_h * sum(1.0 for NN in duo_primer2 if NN in CG)
-GA_h_p2 = GA_delta_h * sum(1.0 for NN in duo_primer2 if NN in GA)
-GC_h_p2 = GC_delta_h * sum(1.0 for NN in duo_primer2 if NN in GC)
-TA_h_p2 = TA_delta_h * sum(1.0 for NN in duo_primer2 if NN in TA)
-
-#Calculation of delta S total for each NN pair in primer 2
-AA_s_p2 = AA_delta_s * sum(1.0 for NN in duo_primer2 if NN in AA)
-AC_s_p2 = AC_delta_s * sum(1.0 for NN in duo_primer2 if NN in AC)
-AG_s_p2 = AG_delta_s * sum(1.0 for NN in duo_primer2 if NN in AG)
-AT_s_p2 = AT_delta_s * sum(1.0 for NN in duo_primer2 if NN in AT)
-CA_s_p2 = CA_delta_s * sum(1.0 for NN in duo_primer2 if NN in CA)
-CC_s_p2 = CC_delta_s * sum(1.0 for NN in duo_primer2 if NN in CC)
-CG_s_p2 = CG_delta_s * sum(1.0 for NN in duo_primer2 if NN in CG)
-GA_s_p2 = GA_delta_s * sum(1.0 for NN in duo_primer2 if NN in GA)
-GC_s_p2 = GC_delta_s * sum(1.0 for NN in duo_primer2 if NN in GC)
-TA_s_p2 = TA_delta_s * sum(1.0 for NN in duo_primer2 if NN in TA)
-
-sum_p1_delta_h = AA_h_p1 + AC_h_p1 + AG_h_p1 + AT_h_p1 + CA_h_p1 + CC_h_p1 + CG_h_p1 + GA_h_p1 + GC_h_p1 + TA_h_p1
-sum_p1_delta_s = AA_s_p1 + AC_s_p1 + AG_s_p1 + AT_s_p1 + CA_s_p1 + CC_s_p1 + CG_s_p1 + GA_s_p1 + GC_s_p1 + TA_s_p1
-
-sum_p2_delta_h = AA_h_p2 + AC_h_p2 + AG_h_p2 + AT_h_p2 + CA_h_p2 + CC_h_p2 + CG_h_p2 + GA_h_p2 + GC_h_p2 + TA_h_p2
-sum_p2_delta_s = AA_s_p2 + AC_s_p2 + AG_s_p2 + AT_s_p2 + CA_s_p2 + CC_s_p2 + CG_s_p2 + GA_s_p2 + GC_s_p2 + TA_s_p2
+#Calculation of delta H adn delta S total for primer 2
+def p2_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list):
+    count, total_dh, total_ds = 0, 0, 0
+    NN_pair = NN_pairs_list[count]
+    for NN_pair in NN_pairs_list:
+        num = sum((1.0 for NN in duo_primer2 if NN in NN_pair))
+        total_dh += num * Delta_H[count]
+        total_ds += num * Delta_S[count]
+        count += 1
+    return total_dh, total_ds
+p2_h_calc, p2_s_calc = p2_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list)
 
 #Calculates the enthalpic compensation for the ends of each primer
-def p1_end_comp(p1_initial_bases,p1_terminal_bases,sum_p1_delta_h):
+def p1_end_comp(p1_initial_bases,p1_terminal_bases,p1_h_calc):
     if p1_initial_bases in ['YY', 'RR']:
-        sum_p1_delta_h += YY_h
+        p1_h_calc += YY_h
     if p1_initial_bases in ['RY','YR']:
-        sum_p1_delta_h += RY_h
+        p1_h_calc += RY_h
     if p1_terminal_bases in ['YY', 'RR']:
-        sum_p1_delta_h += YY_h
+        p1_h_calc += YY_h
     if p1_terminal_bases in ['RY','YR']:
-        sum_p1_delta_h += RY_h
-    return sum_p1_delta_h
+        p1_h_calc += RY_h
+    return p1_h_calc
 
-def p2_end_comp(p2_initial_bases,p2_terminal_bases,sum_p2_delta_h):
+def p2_end_comp(p2_initial_bases,p2_terminal_bases,p2_h_calc):
     if p2_initial_bases in ['YY', 'RR']:
-        sum_p2_delta_h += YY_h
+        p2_h_calc += YY_h
     if p2_initial_bases in ['RY','YR']:
-        sum_p2_delta_h += RY_h
+        p2_h_calc += RY_h
     if p2_terminal_bases in ['YY', 'RR']:
-        sum_p2_delta_h += YY_h
+        p2_h_calc += YY_h
     if p2_terminal_bases in ['RY','YR']:
-        sum_p2_delta_h += RY_h
-    return sum_p2_delta_h
+        p2_h_calc += RY_h
+    return p2_h_calc
 
-p1_total_dh = p1_end_comp(p1_initial_bases,p1_terminal_bases,sum_p1_delta_h)
-p2_total_dh = p2_end_comp(p2_initial_bases,p2_terminal_bases,sum_p2_delta_h)
+p1_total_dh = p1_end_comp(p1_initial_bases,p1_terminal_bases,p1_h_calc)
+p2_total_dh = p2_end_comp(p2_initial_bases,p2_terminal_bases,p2_h_calc)
 ###################################################################################################################################
 #Melting Temperature Calculation and Salt Adjustments
 ###################################################################################################################################
 
 #Determines the melting temperature of the primers
-primer1_melting_temperature = (1000 * p1_total_dh) / (sum_p1_delta_s + (gas_constant * (math.log(oligo_c)))) - 273.15
-primer2_melting_temperature = (1000 * p2_total_dh) / (sum_p2_delta_s + (gas_constant * (math.log(oligo_c)))) - 273.15
+primer1_melting_temperature = (1000 * p1_total_dh) / (p1_s_calc + (gas_constant * (math.log(oligo_c)))) - 273.15
+primer2_melting_temperature = (1000 * p2_total_dh) / (p2_s_calc + (gas_constant * (math.log(oligo_c)))) - 273.15
 
 #Adjustments and unit conversions for the chosen buffer conditions
 Mon = Mono / 2.0 #Divide by two to account for the counterion present, e.g. Cl-, SO4-, etc.

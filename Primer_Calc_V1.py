@@ -81,30 +81,18 @@ def p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list):
 p1_h_calc, p1_s_calc, p2_h_calc, p2_s_calc = p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list)
 
 #Adds in the enthalpic compensation for the ends of each primer
-if p1_initial_bases in ['YY','RR']:
-    p1_h_calc += YY_h
-if p1_initial_bases in ['RY','YR']:
-    p1_h_calc += RY_h
-if p1_terminal_bases in ['YY','RR']:
-    p1_h_calc += YY_h
-if p1_terminal_bases in ['RY','YR']:
-    p1_h_calc += RY_h
+p1_dh_init = (p1_h_calc + YY_h if p1_initial_bases in ['YY','RR'] else dh + RY_h)
+p1_dh_total = (p1_dh_init + YY_h if p1_terminal_bases in ['YY','RR'] else ds + RY_h)
 
-if p2_initial_bases in ['YY','RR']:
-    p2_h_calc += YY_h
-if p2_initial_bases in ['RY','YR']:
-    p2_h_calc += RY_h
-if p2_terminal_bases in ['YY','RR']:
-    p2_h_calc += YY_h
-if p2_terminal_bases in ['RY','YR']:
-    p2_h_calc += RY_h
+p2_dh_init = (p2_h_calc + YY_h if p2_initial_bases in ['YY','RR'] else dh + RY_h)
+p2_dh_total = (p2_dh_init + YY_h if p2_terminal_bases in ['YY','RR'] else ds + RY_h)
 ###################################################################################################################################
 #Melting Temperature Calculation and Salt Adjustments
 ###################################################################################################################################
 
 #Determines the melting temperature of the primers
-primer1_melting_temperature = (1000 * p1_h_calc) / (p1_s_calc + (gas_constant * (math.log(oligo_c)))) - 273.15
-primer2_melting_temperature = (1000 * p2_h_calc) / (p2_s_calc + (gas_constant * (math.log(oligo_c)))) - 273.15
+primer1_melting_temperature = (1000 * p1_dh_total) / (p1_s_calc + (gas_constant * (math.log(oligo_c)))) - 273.15
+primer2_melting_temperature = (1000 * p2_dh_total) / (p2_s_calc + (gas_constant * (math.log(oligo_c)))) - 273.15
 
 #Adjustments and unit conversions for the chosen buffer conditions
 Mon = Mono / 2.0 #Divide by two to account for the counterion present, e.g. Cl-, SO4-, etc.

@@ -5,17 +5,22 @@ Entrez.email = "cookienocreams@outlook.com"
 
 #These are the ideal variables that will form the standards for the recommendations
 ideal_duplex_stabilty = 90 #In Celcius
-gas_constant = 8.31445984848484848484 #J K-1-mol-1 
-purine = ['A','G'] #Lists used to convert primer sequence into R/Y purine/pyrimidine nucleotide codes
-pyrimidine = ['C','T']
-
+NN_pairs_list = [['AA', 'TT'], ['AC', 'TG'], ['AG', 'TC'], ['AT'], ['CA', 'GT'], ['CC', 'GG'], ['CG'], ['GA', 'CT'], ['GC'], ['TA']]
+gas_constant = 1.98720425864083 #cal⋅K−1⋅mol−1
+purine, pyrimidine = ['A','G'], ['C','T'] #Lists used to convert primer sequence into R/Y purine/pyrimidine nucleotide codes
+#PCR buffer conditions
+Na = 0
+K = 50
+Tris = 20
+Mg = 1.5
+dNTPs = .2
+Mono = (Na + K + Tris)
 ###################################################################################################################################
 #Prompts to get the information required to begin the analysis
 #Target DNA sequence and primer information are input here
 #The primer sequences will be analyzed first by calculating their GC content
 #Analysis of primer and input sequence melting temperatures occur last
 ###################################################################################################################################
-
 primer1 = input('Input primer 1 sequence here: ')
 primer2 = input('Input primer 2 sequence here: ')
 oligo1_conc = float(input('Input total single strand oligo concentration in uM here: '))
@@ -25,45 +30,43 @@ start = input('Put start sequence number here: ')
 stop = input('Put stop sequence number here: ')
 
 primer1_length, primer2_length = len(primer1), len(primer2)
-p1_terminal_base, p1_initial_base = primer1[-1], primer1[0]
-p2_terminal_base, p2_initial_base = primer2[-1], primer2[0]
+#Converts primers into their purine/pyrimidine nucleotide codes
+primer1_RY_sequence_str = ''.join(['R' if base in purine else 'Y' for base in primer1])
+primer2_RY_sequence_str = ''.join(['R' if base in purine else 'Y' for base in primer2])
+#Captures the first and last pair of bases in each primer so that the energies associated with opening the helix can be calculated
+p1_initial_bases, p1_terminal_bases = primer1_RY_sequence_str[0:2], primer1_RY_sequence_str[-2:primer1_length]
+p2_initial_bases, p2_terminal_bases = primer2_RY_sequence_str[0:2], primer2_RY_sequence_str[-2:primer2_length]
+#Splits input primers into doublets for easy NN matching below
+primer1_NN_list = re.findall('.{1,2}', primer1) + re.findall('.{1,2}', primer1[1:])
+primer2_NN_list = re.findall('.{1,2}', primer2) + re.findall('.{1,2}', primer2[1:])
 
 #Determines which primer calculation should be used based on the ratio of primer to template
 def oligo_calculation(oligo1_conc, oligo2_conc):
 
     if oligo1_conc > 6 * oligo2_conc:
         oligo_c = (oligo1_conc) * 1e-6 #Converts to mol/L
-
         return oligo_c
     elif oligo1_conc < 6 * oligo2_conc and oligo1_conc > oligo2_conc:
         oligo_c = (oligo1_conc - (oligo2_conc / 2.0)) * 1e-6
-
         return oligo_c
     elif oligo1_conc == oligo2_conc:
         oligo_c = (oligo1_conc / 2.0) * 1e-6
-
         return oligo_c
 
 oligo_c = oligo_calculation(oligo1_conc, oligo2_conc)
 template_c = (oligo2_conc / 2.0) * 1e-6
 
 #Calculation of the each primer's GC content
-def get_primer_gc(primer1, primer2):
-    primer1_GC = (sum(1.0 for base in primer1 if base in ['G', 'C']) / primer1_length) * 100
-    primer2_GC = (sum(1.0 for base in primer2 if base in ['G', 'C']) / primer2_length) * 100
-    return primer1_GC, primer2_GC
-
-primer1_gc, primer2_gc = get_primer_gc(primer1, primer2)
+primer1_gc = (sum((1.0 for base in primer1 if base in ['G', 'C'])) / primer1_length) * 100
+primer2_gc = (sum((1.0 for base in primer2 if base in ['G', 'C'])) / primer2_length) * 100
 ###################################################################################################################################
 #Input Sequence Gathering and Characteriztion
 ###################################################################################################################################
-
 #This function will be used to aquire the fasta file of the input sequence from the Entrez database
 def obtainfasta(chrID, start, stop):
 
     sequence = str(SeqIO.read(Entrez.efetch(db='nucleotide', id=chrID, rettype='fasta', 
     strand='1', seq_start=start, seq_stop=stop), 'fasta').seq)
-
     return sequence
 
 sequence = obtainfasta(chrID, start, stop)
@@ -71,159 +74,71 @@ sequence_length = len(sequence)
 
 #Calculates the GC content of the input DNA sequence
 GC_calculation = (sum(1.0 for base in sequence if base in ['G', 'C']) / sequence_length) * 100
-###################################################################################################################################
-#Determine terminal base compensation parameters for each primer
-###################################################################################################################################
+###########################################################################################################################################
+#Modified Nearest Neighbor Parameters based on SantaLucia's 1998 paper
+###########################################################################################################################################
 '''
 For relatively short DNA sequences, such as PCR primers, the initial melting of the helix is influenced by the bases at the ends.
 DNA sequences around this length follow appoximately two-state melting. Therefore, the initial 'unzipping' plays a larger factor
 in helix melting. Regardless of the underlying mechanism, G or C bases should require more energy to begin unzipping.
 '''
-def p1_end_comp(p1_initial_base, p1_terminal_base):
-    AT_h, AT_s, GC_h, GC_s = 2.53, 5.7, .49, -.7
-    dh_comp, ds_comp = 0, 0
-    if p1_initial_base in ['A', 'T']:
-        dh_comp += AT_h
-        ds_comp += AT_s
-    if p1_initial_base in ['C', 'G']:
-        dh_comp += GC_h
-        ds_comp += GC_s
-    if p1_terminal_base in ['A', 'T']:
-        dh_comp += AT_h
-        ds_comp += AT_s
-    if p1_terminal_base in ['C', 'G']:
-        dh_comp += GC_h
-        ds_comp += GC_s
-    return dh_comp, ds_comp
-
-def p2_end_comp(p2_initial_base,p2_terminal_base):
-    AT_h, AT_s, GC_h, GC_s = 2.53, 5.7, .49, -.7
-    dh_comp, ds_comp = 0, 0
-    if p2_initial_base in ['A', 'T']:
-        dh_comp += AT_h
-        ds_comp += AT_s
-    if p2_initial_base in ['C', 'G']:
-        dh_comp += GC_h
-        ds_comp += GC_s
-    if p2_terminal_base in ['A', 'T']:
-        dh_comp += AT_h
-        ds_comp += AT_s
-    if p2_terminal_base in ['C', 'G']:
-        dh_comp += GC_h
-        ds_comp += GC_s
-    return dh_comp, ds_comp
-
-p1_term_h, p1_term_s = p1_end_comp(p1_initial_base,p1_terminal_base)
-p2_term_h, p2_term_s = p2_end_comp(p2_initial_base,p2_terminal_base)
-###################################################################################################################################
-#Melting Temperature Calculation
-###################################################################################################################################
+AA_delta_s, AA_delta_h = -22.15461879548201, -7.972759800039155
+AC_delta_s, AC_delta_h = -20.20944930135789, -7.6063649173383086
+AG_delta_s, AG_delta_h = -20.85324697548337, -7.7250305886539525
+AT_delta_s, AT_delta_h = -19.931105027077287, -7.069032819297647
+CA_delta_s, CA_delta_h = -21.383943453258333, -7.9794539347093165
+CC_delta_s, CC_delta_h = -19.677205419525077, -7.612190594454272
+CG_delta_s, CG_delta_h = -24.335240882791073, -9.348781072782547
+GA_delta_s, GA_delta_h = -21.617116510641825, -8.058362530689527
+GC_delta_s, GC_delta_h = -23.896038387305747, -9.457805766372232
+TA_delta_s, TA_delta_h = -19.12903239340641, -6.6574837353237415
+#Lists of each nearest neighbor's enthalpy and entropy values that will be used to calculate the thermodynamic values of each primer
+Delta_S = [AA_delta_s,AC_delta_s,AG_delta_s,AT_delta_s,CA_delta_s,CC_delta_s,CG_delta_s,GA_delta_s,GC_delta_s,TA_delta_s]
+Delta_H = [AA_delta_h,AC_delta_h,AG_delta_h,AT_delta_h,CA_delta_h,CC_delta_h,CG_delta_h,GA_delta_h,GC_delta_h,TA_delta_h]
+#End Compensation parameters adjusted for primer length and changes in monovalent ion concentration
+YY_constant_one = (-.0235 * primer1_length) + .1273
+YY_constant_two = (.1639 * primer1_length) - .895
+YR_constant_one = (-.296 * math.log(primer1_length)) + .5058
+YR_constant_two = (2.0303 * math.log(primer1_length)) - 3.4594
+YY_length_adjust_eq = YY_constant_one * math.log(Mono) + YY_constant_two
+YR_length_adjust_eq = YR_constant_one * math.log(Mono) + YR_constant_two
+YY_h,RY_h = 0.959547884222969 - YY_length_adjust_eq, 0.849386567650066 - YR_length_adjust_eq
 '''
-This section attempts to correct the model's accuracy discrepancy when computing the melting temperatures of oligos with 
-different base sequences but the same GC content. Those types of oligos can differ significantly, however, Privalov and 
-Crane-Robinson's model doesn't contain any way to account for those differences. I think the discrepancy may be due to intrinsic 
-DNA bending, ion binding, and solvent effects. Site specific monovalent and divalent ion binding may break up water binding along 
-the minor groove, thus decreasing the entropy cost associated with that water binding. In theory, the longer the alternating purine 
-and pyrimidine chain, the more stable the helix is. Conversely, the longer the strings of repeating pyrimidine bases, the less stable 
-the helix.
+I think the discrepancy between oligos with different base sequences but the same GC content may be due to intrinsic DNA bending, 
+ion binding, and solvent effects. Site specific monovalent and divalent ion binding may break up water binding along the minor groove, 
+thus decreasing the entropy cost associated with that water binding.
 '''
-GC_pairs_p1 = re.findall('(?:G|C){1}(?:G|C){1,}', primer1) #Generates a list of repeating guanine and cytosine sequences
-GC_pairs_p2 = re.findall('(?:G|C){1}(?:G|C){1,}', primer2) #in each primer. Only includes sequences with two or more repeats.
+###########################################################################################################################################
+#Determination of the NN thermodynamic parameters for each primer
+###########################################################################################################################################
+#Calculation of delta H and delta S total for both primers
+def p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list):
+    count, p1_total_dh, p1_total_ds, p2_total_dh, p2_total_ds = 0, 0, 0, 0, 0 #Needed to track values of each NN pair
+    NN_pair = NN_pairs_list[count] #Indexed to calculate the values of each set of NN in the nearest-neighbor list
+    for NN_pair in NN_pairs_list:
+        p1_total_dh += Delta_H[count] * sum((1.0 for NN in primer1_NN_list if NN in NN_pair))#Calculates the number of occurances of each NN in 
+        p1_total_ds += Delta_S[count] * sum((1.0 for NN in primer1_NN_list if NN in NN_pair))#the primer sequence and multiplies the number of
+        p2_total_dh += Delta_H[count] * sum((1.0 for NN in primer2_NN_list if NN in NN_pair))#occurances by the associated delta h/s value
+        p2_total_ds += Delta_S[count] * sum((1.0 for NN in primer2_NN_list if NN in NN_pair))
+        count += 1 #Adds one to the count to keep track of which NNs have been calculated already
+    return p1_total_dh, p1_total_ds, p2_total_dh, p2_total_ds
+p1_dh_calc, p1_ds_calc, p2_dh_calc, p2_ds_calc = p1_thermodynamic_sum(Delta_H,Delta_S,NN_pairs_list)
 
-RY_primer1_str = ''.join(['R' if base in purine else 'Y' for base in primer1]) #Converts each primer into the nucleotide codes
-RY_primer2_str = ''.join(['R' if base in purine else 'Y' for base in primer2]) #R and Y for purine and pyrimidine bases
+#Adds in the enthalpic compensation for the ends of each primer
+p1_dh_init = (p1_dh_calc + YY_h if p1_initial_bases in ['YY','RR'] else p1_dh_calc + RY_h)
+p1_dh_total = (p1_dh_init + YY_h if p1_terminal_bases in ['YY','RR'] else p1_dh_init + RY_h)
 
-RY_pairs_p1 = re.findall('(?:RY){1,}', RY_primer1_str) #Generates a list of repeating purine and pyrimidine sequences
-RY_pairs_p2 = re.findall('(?:RY){1,}', RY_primer2_str) #in each primer. Only includes sequences with two or more repeats.
-
-YY_pairs_p1 = re.findall('(?:Y){2,}', RY_primer1_str) + re.findall('(?:R){2,}', RY_primer1_str) #Generates a list of repeating purine and
-YY_pairs_p2 = re.findall('(?:Y){2,}', RY_primer2_str) + re.findall('(?:R){2,}', RY_primer2_str) #pyrimidine sequences in each primer.
-'''
-The above lists are needed so that their respective influences on helix stability can be measured and quantified. The functions 
-below attempts to apply those differences to appropriately modify the melting temperature.
-'''
-#These variables take those captured sequences from the lists of pairs above and convert them into lengths. The lengths will then
-#be used to alter the entropy values during the melting temperature calculation.
-p1_GC_len = [len(seq) for seq in GC_pairs_p1]
-p1_RY_len = [len(seq) for seq in RY_pairs_p1]
-p1_YY_len = [len(seq) for seq in YY_pairs_p1]
-
-p2_GC_len = [len(seq) for seq in GC_pairs_p2]
-p2_RY_len = [len(seq) for seq in RY_pairs_p2]
-p2_YY_len = [len(seq) for seq in YY_pairs_p2]
-#Here the melting temperature of the primers is determined based on the method developed by Privalov and Crane-Robinson
-#See Privalov, P. L., & Crane-Robinson, C. (2018). https://doi.org/10.1016/j.pbiomolbio.2018.01.007
-heat_capacity = .13 #kJ/K,mol-bp
-H_A_25, H_T_25 = 25, 25 #kJ/mol-bp
-S_A_25, S_T_25 = 72, 72 #J/K-mol-bp
-H_CG_25, S_CG_25 = 18.8, 44.7
-
-def p1_melting_calculation(primer1):
-
-    n_A, n_T = primer1.count('A'), primer1.count('T') #Counts the number of each base in the primer
-    n_CG = primer1.count('C') + primer1.count('G') #Needed to calculate total enthalpy and entropy
-    
-    #Total enthalpy and entropy value calculations for determining the melting temperature. Takes the heat capacity into account.
-    delta_H = ((H_A_25 + (heat_capacity * (314.5 - 298.15))) * n_A) + ((H_T_25 + (heat_capacity * (314.5 - 298.15))) * n_T) + ((H_CG_25 + (heat_capacity * (314.5 - 298.15))) * n_CG) + p1_term_h
-    delta_S = ((S_A_25 + (heat_capacity * math.log(314.5 / 298.15))) * n_A) + ((S_T_25 + (heat_capacity * math.log(314.5 / 298.15))) * n_T) + ((S_CG_25 + (heat_capacity * math.log((314.5) / 298.15))) * n_CG) + p1_term_s
-    '''
-The equation below functions as an approximate "best fit" correction for the discrepancy in the model's accuracy at high and low %GC. It 
-adjust the constants of a polynomial equation based on chnages in oligo length. The values here were derived from the melting temperatures
-from the 92 oligos in Owczarzy's 2004 paper. See Owczarzy, R. et. al (2004). Biochemistry. https://doi.org/10.1021/bi034621r.
-'''   
-    delta_S -= ((-.001292 * (primer1_length) + .00988) * (primer1_gc) ** 2 + (.0572 * (primer1_length) - .7342) * (primer1_gc) + \
-        (-.0366 * (primer1_length) ** 2 + .839 * (primer1_length) + 23.863))
-    '''
-Additional corrections for the combination of site specific DNA bending, ion binding to specific sequences, plus other assorted solvent
-effects which are too complex to fully account for. The following try to account for divalent ion binding to G bases which may displace
-part of the water spine therefore reducing entropy. The other YY and RY corrections try to account for the hightened twist-roll coupling
-that occurs most often in pyrimidine-purine dimers and least often in purine-pyrimidine steps.
-'''    
-    if primer1_length < 25: #Corrections are most helpful for oligos shorter than around 25 bp 
-        for num in p1_GC_len:
-            delta_S -= (.70 * num)
-        for num in p1_RY_len:
-            delta_S -= (.25 * num)
-        for num in p1_YY_len:
-            delta_S += (.65 * num)
-    tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2 / oligo_c)))) - 298.15
-
-    return tm
-
-def p2_melting_calculation(primer2):
-
-    n_A, n_T, n_CG = primer2.count('A'), primer2.count('T'), primer2.count('C') + primer2.count('G')
-
-    delta_H = ((H_A_25 + (heat_capacity * (314.5 - 298.15))) * n_A) + ((H_T_25 + (heat_capacity * (314.5 - 298.15))) * n_T) + ((H_CG_25 + (heat_capacity * (314.5 - 298.15))) * n_CG) + p2_term_h
-    delta_S = ((S_A_25 + (heat_capacity * math.log(314.5 / 298.15))) * n_A) + ((S_T_25 + (heat_capacity * math.log(314.5 / 298.15))) * n_T) + ((S_CG_25 + (heat_capacity * math.log((314.5) / 298.15))) * n_CG) + p2_term_s
-    
-    delta_S -= ((-.001292 * (primer2_length) + .00988) * (primer2_gc) ** 2 + (.0572 * (primer2_length) - .7342) * (primer2_gc) + \
-        (-.0366 * (primer2_length) ** 2 + .839 * (primer2_length) + 23.863))
-    if primer2_length < 25:
-        for num in p2_GC_len:
-            delta_S -= (.70 * num)
-        for num in p2_RY_len:
-            delta_S -= (.25 * num)
-        for num in p2_YY_len:
-            delta_S += (.65 * num)
-    tm = (1000 * delta_H) / (delta_S + (gas_constant * (math.log(2 / oligo_c)))) - 298.15
-
-    return tm
-
-primer1_melting_temperature = p1_melting_calculation(primer1)
-primer2_melting_temperature = p2_melting_calculation(primer2)
-###################################################################################################################################
-#Buffer Adjustments
-###################################################################################################################################
-#PCR buffer conditions
-Na = 0
-K = 50
-Tris = 20
-Mg = 1.5
-dNTPs = .2
+p2_dh_init = (p2_dh_calc + YY_h if p2_initial_bases in ['YY','RR'] else p2_dh_calc + RY_h)
+p2_dh_total = (p2_dh_init + YY_h if p2_terminal_bases in ['YY','RR'] else p2_dh_init + RY_h)
+###########################################################################################################################################
+#Melting Temperature Calculation and Salt Adjustments
+###########################################################################################################################################
+#Determines the melting temperature of the primers
+primer1_melting_temperature = (1000 * p1_dh_total) / (p1_ds_calc + (gas_constant * (math.log(oligo_c)))) - 273.15
+primer2_melting_temperature = (1000 * p2_dh_total) / (p2_ds_calc + (gas_constant * (math.log(oligo_c)))) - 273.15
 
 #Adjustments and unit conversions for the chosen buffer conditions
-Mon = (Na + K + Tris) / 2.0 #Divide by two to account for the counterion present, e.g. Cl-, SO4-, etc.
+Mon = Mono / 2.0 #Divide by two to account for the counterion present, e.g. Cl-, SO4-, etc.
 mg_adj = Mg * 1e-3 #Converts to mol/L
 mon = Mon * 1e-3
 dntps = dNTPs * 1e-3 
@@ -234,13 +149,10 @@ mg = (-(ka * dntps - ka * mg_adj + 1.0) + math.sqrt((ka * dntps - ka * mg_adj + 
 #Equations from Owczarzy 2008 that adjusts melting temperatures according to monovalent ion, magnesium, and dNTP concentrations
 #See Owczarzy, R., et al. (2008). Biochemistry, https://doi.org/10.1021/bi702363u
 def seq_melting_temperature(GC_calculation, mon):
-
     seq_tm = 449.15 - (2.60 - (GC_calculation / 100)) * (36.0 - (7.04 * math.log10(mon)))
-    
     return round(seq_tm - 273.15, 1)
-
+#Equations from Owczarzy 2008 that adjusts melting temperatures according to monovalent ion, magnesium, and dNTP concentrations
 def primer1_salt_correction(primer1_melting_temperature, primer1_gc, primer1_length, mg, mon):
-    a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.26e-5, 1.42e-5, -4.02e-4, 5.10e-4, 8.31e-5 #Slightly modified constants
     '''
 The condition calculating the melting temperature if there is no monovalent salt present must be put first, before calculating R.
 This is because the R equation requires dividing by the monovalent ion concentration. And of course, you can't divide by zero.
@@ -248,47 +160,55 @@ Additionally, although the condition of R > 6 uses the same equation as when no 
 can't be combined. In situations where no magnesium is present, the equation would try to take the natural log of zero, which
 throws an error.
 '''
+    #General constants and constants to regulate balance between Mg2+ and Na+ ions
+    a, b, c, d, e, f, g = 3.919e-5, -2.88e-5, 3.603e-5, 2.322e-5, -3.507e-4, 4.711e-4, 6.52e-5 
+    const_a,const_b,const_c,const_d,const_e,const_f,const_g,const_h = -0.1156,-2.0725,-0.1445,6.247e-3,6.131e-3,0.0314,0.5308,4.563e-3
+    
     if mon == 0:
         salt2 = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
-        return round((1 / salt2) - 273.15, 1)
-
-    R = math.sqrt(mg) / mon #Ratio to determine whether monovalent or divalent ions are dominant in their effects on melting temperature
-
-    if R < 0.22:
+        return round((1 / salt2) - 273.15, 1) #This equation converts the above calculation back into a useable melting temperature
+    R = math.sqrt(mg) / mon #R is used to determine whether salt or magnesium is the primary factor affecting melting temperature
+    if R < 0.22: #This equation is used if salt is the primary factor
+        if Mono > 900:
+            salt1 = (1 / (primer1_melting_temperature + 273.15)) + ((4.29e-5 * (primer1_gc / 100)) - 3.95e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
+            return round((primer1_melting_temperature + ((1 / salt1) - 273.15)) / 2, 1)
         salt1 = (1 / (primer1_melting_temperature + 273.15)) + ((4.29e-5 * (primer1_gc / 100)) - 3.95e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
         return round((1 / salt1) - 273.15, 1)
+    #This equation is used if there is a complex balance between salt and magnesium
     elif R < 6.0:
-        a = 4.42e-5 * (0.843 - (0.352 * math.sqrt(mon) * math.log(mon)))
-        d = 1.02e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
-        g = 8.71e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
-
+        a = 3.92e-5 * (const_a * math.log(mg) - (const_b * math.sqrt(mon) * math.log(mon)))
+        d = 2.32e-5 * ((const_c * math.log(mg) - const_d * math.log(mon)) - const_e * (math.log(mon) ** 2))
+        g = 6.52e-5 * ((const_f * math.log(mg) - const_g * math.log(mon)) + const_h * (math.log(mon) ** 3))
         salt2 = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         return round((1 / salt2) - 273.15, 1)
+    #This equation is used if magnesium is the primary factor
     elif R > 6.0:
         salt2 = (1 / (primer1_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer1_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer1_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
-    return round((1 / salt2) - 273.15, 1)
+        return round((1 / salt2) - 273.15,1)
 
 def primer2_salt_correction(primer2_melting_temperature, primer2_gc, primer2_length, mg, mon):
-    a, b, c, d, e, f, g = 3.92e-5, -9.11e-6, 6.26e-5, 1.42e-5, -4.02e-4, 5.10e-4, 8.31e-5
+    a, b, c, d, e, f, g = 3.919e-5, -2.88e-5, 3.603e-5, 2.322e-5, -3.507e-4, 4.711e-4, 6.52e-5
+    const_a,const_b,const_c,const_d,const_e,const_f,const_g,const_h = -0.1156,-2.0725,-0.1445,6.247e-3,6.131e-3,0.0314,0.5308,4.563e-3
+    
     if mon == 0:
         salt2 = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         return round((1 / salt2) - 273.15, 1)
-
     R = math.sqrt(mg) / mon 
-    
     if R < 0.22:
+        if Mono > 900:
+            salt1 = (1 / (primer2_melting_temperature + 273.15)) + ((4.29e-5 * (primer2_gc / 100)) - 3.95e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
+            return round((primer2_melting_temperature + ((1 / salt1) - 273.15)) / 2, 1)
         salt1 = (1 / (primer2_melting_temperature + 273.15)) + ((4.29e-5 * (primer2_gc / 100)) - 3.95e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
         return round((1 / salt1) - 273.15, 1)
     elif R < 6.0:
-        a = 4.42e-5 * (0.843 - (0.352 * math.sqrt(mon) * math.log(mon)))
-        d = 1.02e-5 * ((1.279 - 4.03e-3 * math.log(mon)) - 8.03e-3 * (math.log(mon) ** 2))
-        g = 8.71e-5 * ((0.486 - 0.258 * math.log(mon)) + 5.25e-3 * (math.log(mon) ** 3)) 
-
+        a = 3.92e-5 * (const_a * math.log(mg) - (const_b * math.sqrt(mon) * math.log(mon)))
+        d = 2.32e-5 * ((const_c * math.log(mg) - const_d * math.log(mon)) - const_e * (math.log(mon) ** 2))
+        g = 6.52e-5 * ((const_f * math.log(mg) - const_g * math.log(mon)) + const_h * (math.log(mon) ** 3)) 
         salt2 = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         return round((1 / salt2) - 273.15, 1)
     elif R > 6.0:
         salt2 = (1 / (primer2_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((primer2_gc / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer2_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
-        return round((1 / salt2) - 273.15, 1)
+        return round((1 / salt2) - 273.15,1)
 
 salty_melting_temperature = seq_melting_temperature(GC_calculation, mon)
 
@@ -299,15 +219,11 @@ def DMSO_correction(salty_melting_temperature, GC_calculation):
     DMSO_melting_temperature = salty_melting_temperature - DMSO_factor * DMSO
 
     while DMSO_melting_temperature > ideal_duplex_stabilty:
-
         DMSO += 1
         DMSO_melting_temperature = salty_melting_temperature - DMSO_factor * DMSO
-
         if DMSO_melting_temperature <= ideal_duplex_stabilty:
-
             print('The recommended DMSO concentration that should be used is ' + str(DMSO) + '%.')
             break
-
     return round(DMSO_melting_temperature, 1)
 
 adj_primer1_melting_temperature = primer1_salt_correction(primer1_melting_temperature, primer1_gc, primer1_length, mg, mon)

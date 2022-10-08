@@ -27,70 +27,103 @@ TA_delta_s, TA_delta_h = -19.12903239340641, -6.6574837353237415
 def type_of_sequence_to_analyze():
     primer_or_gene = ''
     input_sequence_list = []
+    
     while primer_or_gene != 'primer' and primer_or_gene != 'gene' and primer_or_gene != 'both':
         primer_or_gene = input('Would you like to calculate the melting temperature of a primer, gene sequence, or both? (primer/gene/both): ')
+        
         if primer_or_gene == 'primer':
+            
             input_sequence_list = input('Input primer sequences separated by commas here: ').replace(" ", "").split(',')
             oligo_concentration_in_uM = float(input('Input total single strand oligo concentration in uM here: '))
             oligo_concentration = (oligo_concentration_in_uM) * 1e-6 #Converts to mol/L
+            
         elif primer_or_gene == 'gene':
+            
             ncbi_ID = input('Input NCBI gene ID here: ')
             start = input('Put start sequence number here: ')
             stop = input('Put stop sequence number here: ')
             oligo_concentration_in_uM = float(input('Input total single strand oligo concentration in uM here: '))
+            
             oligo_concentration = (oligo_concentration_in_uM) * 1e-6 #Converts to mol/L
             sequence, gene_GC_calculation = obtainfasta(ncbi_ID, start, stop) #Grabs gene fragment sequence
             input_sequence_list.append(sequence)
+            
         elif primer_or_gene == 'both':
+            
             input_sequence_list = input('Input primer sequence here: ').replace(" ", "").split(',')
             oligo_concentration_in_uM = float(input('Input total single strand oligo concentration in uM here: '))
             ncbi_ID = input('Input NCBI gene ID here: ')
             start = input('Put start sequence number here: ')
             stop = input('Put stop sequence number here: ')
             template_concentration = float(input('Input total single strand template concentration in uM here: '))
+            
             oligo_concentration = calculate_oligo_concentration(oligo_concentration_in_uM, template_concentration) #Calculates correct primer concentration in relation to template
             sequence, gene_GC_calculation = obtainfasta(ncbi_ID, start, stop) #Grabs gene fragment sequence
             input_sequence_list.append(sequence) #Adds gene sequence to list of sequences to analyze
+            
     if primer_or_gene == 'primer' or primer_or_gene == 'both': #Asks for buffer information if primer sequences are entered
+        
         Mono = float(input('Input total monovalent ion concentration in mM here: '))
         Mg = float(input('Input Mg concentration in mM here: '))
         dNTPs = float(input('Input dNTP concentration in mM here: '))
+        
         return primer_or_gene, input_sequence_list, Mono, Mg, dNTPs, oligo_concentration, gene_GC_calculation
+    
     else:
+        
         Mono = float(input('Input total monovalent ion concentration in mM here: '))
         Mg = 0
         dNTPs = 0
+        
         return primer_or_gene, input_sequence_list, Mono, Mg, dNTPs, oligo_concentration, gene_GC_calculation
 
 def calculate_oligo_concentration(oligo_concentration_in_uM, template_concentration):
+    
     #Determines which primer calculation should be used based on the ratio of primer to template
     if oligo_concentration_in_uM > 6 * template_concentration:
+        
         oligo_concentration = (oligo_concentration_in_uM) * 1e-6 #Converts to mol/L
+        
         return oligo_concentration
+    
     elif oligo_concentration_in_uM < 6 * template_concentration and oligo_concentration_in_uM > template_concentration:
+        
         oligo_concentration = (oligo_concentration_in_uM - (template_concentration / 2.0)) * 1e-6
+        
         return oligo_concentration
+    
     elif oligo_concentration_in_uM == template_concentration:
+        
         oligo_concentration = (oligo_concentration_in_uM / 2.0) * 1e-6
+        
         return oligo_concentration    
 
 def obtainfasta(ncbi_ID, start, stop): #Uses Entrez to grab gene sequence from its fasta file
+    
     sequence = str(SeqIO.read(Entrez.efetch(db='nucleotide', id=ncbi_ID, rettype='fasta', 
     strand='1', seq_start=start, seq_stop=stop), 'fasta').seq)
+    
     gene_GC_calculation = (sum(1.0 for base in sequence if base in ['G', 'C']) / len(sequence)) * 100
+    
     return sequence, gene_GC_calculation
 
 def primer_thermodynamic_sum(Delta_H,Delta_S,primer_NN_list, NN_pairs_list): #Calculates delta H and delta S total for all primers
+    
     count, primer_total_dh, primer_total_ds = 0, 0, 0 #Needed to track values of each NN pair
     NN_pair = NN_pairs_list[count] #Indexed to calculate the values of each set of NN in the nearest-neighbor list
+    
     for NN_pair in NN_pairs_list:
+        
         primer_total_dh += Delta_H[count] * sum((1.0 for NN in primer_NN_list if NN in NN_pair))#Calculates the number of occurances of each NN in the primer sequence
         primer_total_ds += Delta_S[count] * sum((1.0 for NN in primer_NN_list if NN in NN_pair))#and multiplies the number of occurances by the associated delta h/s value
+        
         count += 1 #Adds one to the count to keep track of which NNs have been calculated already
+    
     return primer_total_dh, primer_total_ds
 
 #Input sequence uses different melting temperature caculation since long strands melt differently than short duplexes
 def gene_melting_temperature(gene_GC_calculation, Mono, list_of_melting_temperatures, list_of_gc_content):
+    
     Mon = Mono / 2.0 #Divide by two to account for the counterion present, e.g. Cl-, SO4-, etc.
     mon = Mon * 1e-3 #Converts to mol/L
     gene_tm = 449.15 - (2.60 - (gene_GC_calculation / 100)) * (36.0 - (7.04 * math.log10(mon))) #Melting temperature formula
@@ -99,6 +132,7 @@ def gene_melting_temperature(gene_GC_calculation, Mono, list_of_melting_temperat
     list_of_gc_content.append(gene_GC_calculation) #Adds calculated percent GC to the list of melting temperatures
 
 def calculate_oligo_melting_temperature(gas_constant, oligo_concentration, Mono, primer_length, primer_total_dh, primer_total_ds, primer_initial_bases, primer_terminal_bases):
+    
     #End Compensation parameters adjusted for primer length and changes in monovalent ion concentration
     YY_constant_one = (-.0235 * primer_length) + .1273
     YY_constant_two = (.1639 * primer_length) - .895
@@ -114,9 +148,11 @@ def calculate_oligo_melting_temperature(gas_constant, oligo_concentration, Mono,
 
     #Determines the melting temperature of the primer
     primer_melting_temperature = (1000 * primer_dh_total) / (primer_total_ds + (gas_constant * (math.log(oligo_concentration)))) - 273.15
+    
     return primer_melting_temperature
 
 def primer_salt_correction(primer_melting_temperature, GC_calculation, primer_length, Mono, dNTPs, Mg, list_of_melting_temperatures, list_of_gc_content):
+    
     #Equations from Owczarzy 2008 that adjusts melting temperatures according to monovalent ion, magnesium, and dNTP concentrations
     #See Owczarzy, R., et al. (2008). Biochemistry, https://doi.org/10.1021/bi702363u
     #Adjustments and unit conversions for the chosen buffer conditions
@@ -138,25 +174,36 @@ def primer_salt_correction(primer_melting_temperature, GC_calculation, primer_le
     throws an error.
     '''
     if mon == 0:
+        
         salty = (1 / (primer_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((GC_calculation / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         salt_melting_temperature = round((1 / salty) - 273.15,1) #This equation converts the above calculation back into a useable melting temperature
+    
     R = math.sqrt(mg) / mon #R is used to determine whether salt or magnesium is the primary factor affecting melting temperature
+    
     if R < 0.22: #This equation is used if salt is the primary factor
+        
         if Mono > 900:
+            
             salty = (1 / (primer_melting_temperature + 273.15)) + ((4.29e-5 * (GC_calculation / 100)) - 3.95e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
             #return round((primer_melting_temperature + ((1 / salty) - 273.15)) / 2, 1)
+            
             salt_melting_temperature = round((1 / salty) - 273.15,1)
+        
         salty = (1 / (primer_melting_temperature + 273.15)) + ((4.29e-5 * (GC_calculation / 100)) - 3.95e-5) * math.log(mon) + 9.40e-6 * (math.log(mon)) ** 2
         salt_melting_temperature = round((1 / salty) - 273.15,1)
+    
     #This equation is used if there is a complex balance between salt and magnesium
     elif R < 6.0:
+        
         a = 3.92e-5 * (const_a * math.log(mg) - (const_b * math.sqrt(mon) * math.log(mon)))
         d = 2.32e-5 * ((const_c * math.log(mg) - const_d * math.log(mon)) - const_e * (math.log(mon) ** 2))
         g = 6.52e-5 * ((const_f * math.log(mg) - const_g * math.log(mon)) + const_h * (math.log(mon) ** 3))
         salty = (1 / (primer_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((GC_calculation / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         salt_melting_temperature = round((1 / salty) - 273.15,1)
+    
     #This equation is used if magnesium is the primary factor
     elif R > 6.0:
+        
         salty = (1 / (primer_melting_temperature + 273.15)) + a + (b * math.log(mg)) + ((GC_calculation / 100) * (c + d * math.log(mg))) + (1 / (2.0 * (primer_length - 1))) * (e + f * math.log(mg) + g * math.log(mg) ** 2)
         salt_melting_temperature = round((1 / salty) - 273.15,1)
 
@@ -165,23 +212,31 @@ def primer_salt_correction(primer_melting_temperature, GC_calculation, primer_le
 
 #Prints the results
 def display_results(list_of_gc_content, list_of_melting_temperatures):
+    
     count = 0
     sequence_tracker = 1 #Keeps track of which sequence data is being displayed
+    
     for gc_percent in list_of_gc_content:
+        
         primer_gc_percent = list_of_gc_content[count]
         primer_Tm = list_of_melting_temperatures[count]
+        
         print('The GC content of sequence '+ str(sequence_tracker) +' is ' + str(round(primer_gc_percent, 1)) + '% ' +'and the melting temperature is ' + str(primer_Tm) + 'C')
+        
         count += 1
         sequence_tracker += 1
 
 def main():
+    
     #Lists of each nearest neighbor's enthalpy and entropy values that will be used to calculate the thermodynamic values of each primer
     Delta_S = [AA_delta_s,AC_delta_s,AG_delta_s,AT_delta_s,CA_delta_s,CC_delta_s,CG_delta_s,GA_delta_s,GC_delta_s,TA_delta_s]
     Delta_H = [AA_delta_h,AC_delta_h,AG_delta_h,AT_delta_h,CA_delta_h,CC_delta_h,CG_delta_h,GA_delta_h,GC_delta_h,TA_delta_h]
     primer_or_gene, input_sequence_list, Mono, Mg, dNTPs, oligo_concentration, gene_GC_calculation = type_of_sequence_to_analyze()
     list_of_melting_temperatures = [] #Lists to keep track of the melting temperatures and gc contents calculated
     list_of_gc_content = []
+    
     for sequence in input_sequence_list:
+        
         NN_pairs_list = [['AA', 'TT'], ['AC', 'TG'], ['AG', 'TC'], ['AT'], ['CA', 'GT'], ['CC', 'GG'], ['CG'], ['GA', 'CT'], ['GC'], ['TA']]
         purine, pyrimidine = ['A','G'], ['C','T'] #Lists used to convert primer sequence into R/Y purine/pyrimidine nucleotide codes
         gas_constant = 1.98720425864083 #J K-1-mol-1 
@@ -200,23 +255,33 @@ def main():
         primer_RY_sequence_str = ''.join(['R' if base in purine else 'Y' for base in sequence]) #Converts primers into their purine/pyrimidine nucleotide codes
         primer_initial_bases, primer_terminal_bases = primer_RY_sequence_str[0:2], primer_RY_sequence_str[-2:primer_length] #Captures the first and last pair of bases in each primer so that the energies associated with opening the helix can be calculated
         primer_NN_list = re.findall('.{1,2}', sequence) + re.findall('.{1,2}', sequence[1:]) #Splits input primers into doublets for easy NN matching below
+        
         #Determines which set of functions to run based on whether the user input primers, a gene, or both
         if primer_or_gene == 'primer':
+            
             primer_total_dh, primer_total_ds = primer_thermodynamic_sum(Delta_H,Delta_S,primer_NN_list, NN_pairs_list)
             primer_melting_temperature = calculate_oligo_melting_temperature(gas_constant, oligo_concentration, Mono, primer_length, primer_total_dh, primer_total_ds, primer_initial_bases, primer_terminal_bases)
             primer_salt_correction(primer_melting_temperature, GC_calculation, primer_length, Mono, dNTPs, Mg, list_of_melting_temperatures, list_of_gc_content)
+        
         elif primer_or_gene == 'gene':
+            
             gene_melting_temperature(gene_GC_calculation, Mono, list_of_melting_temperatures, list_of_gc_content)
+        
         elif primer_or_gene == 'both':
             sequence_tracker = 1
             if sequence_tracker == 1:
+                
                 primer_total_dh, primer_total_ds = primer_thermodynamic_sum(Delta_H,Delta_S,primer_NN_list, NN_pairs_list)
                 primer_melting_temperature = calculate_oligo_melting_temperature(gas_constant, oligo_concentration, Mono, primer_length, primer_total_dh, primer_total_ds, primer_initial_bases, primer_terminal_bases)
                 primer_salt_correction(primer_melting_temperature, GC_calculation, primer_length, Mono, dNTPs, Mg, list_of_melting_temperatures, list_of_gc_content)
                 sequence_tracker+=1
+            
             if sequence_tracker == 2:
+                
                 gene_melting_temperature(gene_GC_calculation, Mono, list_of_melting_temperatures, list_of_gc_content)
+                
                 break
+    
     display_results(list_of_gc_content, list_of_melting_temperatures)
 
 if __name__=='__main__':
